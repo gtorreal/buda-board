@@ -412,8 +412,18 @@ table.ebitda td.col-year {
 .delay-6 { animation-delay: 0.35s; }
 .delay-7 { animation-delay: 0.45s; }
 
+/* Section Divider */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 3rem 0 2.5rem;
+}
+
+.kpi-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+
 @media (max-width: 1200px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .kpi-grid-4 { grid-template-columns: repeat(2, 1fr); }
   .entity-grid { grid-template-columns: repeat(3, 1fr); }
   .charts-grid { grid-template-columns: 1fr; }
 }
@@ -433,7 +443,7 @@ table.ebitda td.col-year {
     <div class="logo"><img src="buda-logo.png" alt="Buda"></div>
     <div class="header-title">
       <h1>Buda Holdco SpA</h1>
-      <p>Board Financial Report &mdash; Consolidated EBITDA
+      <p>Board Financial Report
         <span class="data-source"><span class="data-source-dot"></span>Live</span>
       </p>
     </div>
@@ -502,8 +512,8 @@ let currentYear = null;  // null = latest year with data
 let expandedYear = null; // which year is expanded in the table
 
 // ═══ API ═══
-async function fetchSheet(sheetName) {
-  const range = encodeURIComponent(sheetName + '!A3:CB68');
+async function fetchSheet(sheetName, customRange) {
+  const range = encodeURIComponent(sheetName + '!' + (customRange || 'A3:CB68'));
   const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + SPREADSHEET_ID +
     '/values/' + range + '?key=' + API_KEY + '&valueRenderOption=UNFORMATTED_VALUE';
   const res = await fetch(url);
@@ -561,6 +571,78 @@ function parseSheet(rows) {
   }
 
   return { months: monthLabels, years: yearLabels, M, YT };
+}
+
+// ═══ PARSE: METRICS ═══
+function parseMetrics(rows) {
+  var dates = rows[1] || [];
+  var months = [];
+  var ci = []; // column indices
+  for (var c = 1; c < dates.length; c++) {
+    var label = excelDateToLabel(dates[c]);
+    if (label) { months.push(label); ci.push(c); }
+  }
+  function vals(ri) {
+    var row = rows[ri] || [];
+    return ci.map(function(c) { return typeof row[c] === 'number' ? row[c] : 0; });
+  }
+  function sum4(a, b, c, d) {
+    return a.map(function(_, i) { return (a[i]||0)+(b[i]||0)+(c[i]||0)+(d[i]||0); });
+  }
+  var mauAR=vals(2), mauCL=vals(3), mauCO=vals(4), mauPE=vals(5);
+  var mtuAR=vals(10), mtuCL=vals(11), mtuCO=vals(12), mtuPE=vals(13);
+  var txAR=vals(19), txCL=vals(20), txCO=vals(21), txPE=vals(22);
+  return {
+    months: months,
+    mau: { ar:mauAR, cl:mauCL, co:mauCO, pe:mauPE, total:sum4(mauAR,mauCL,mauCO,mauPE) },
+    mtu: { ar:mtuAR, cl:mtuCL, co:mtuCO, pe:mtuPE, total:sum4(mtuAR,mtuCL,mtuCO,mtuPE) },
+    tx:  { ar:txAR,  cl:txCL,  co:txCO,  pe:txPE,  total:sum4(txAR,txCL,txCO,txPE) },
+  };
+}
+
+// ═══ PARSE: RRHH ═══
+function parseRRHH(rows) {
+  var yearRow = rows[1] || [];
+  var monthRow = rows[2] || [];
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var months = [];
+  var ci = [];
+  var curYear = null;
+  for (var c = 1; c < monthRow.length; c++) {
+    if (typeof yearRow[c] === 'number' && yearRow[c] >= 2020) curYear = yearRow[c];
+    var m = monthRow[c];
+    if (curYear && typeof m === 'number' && m >= 1 && m <= 12) {
+      months.push(mo[m-1] + '-' + String(curYear).slice(2));
+      ci.push(c);
+    }
+  }
+  function vals(ri) {
+    var row = rows[ri] || [];
+    return ci.map(function(c) { return typeof row[c] === 'number' ? row[c] : 0; });
+  }
+  return { months: months, chile: vals(3), colombia: vals(4), peru: vals(5), total: vals(6) };
+}
+
+// ═══ PARSE: LOANS ═══
+function parseLoans(rows) {
+  var hdr = rows[9] || [];
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var months = [];
+  var ci = [];
+  for (var c = 1; c < hdr.length; c++) {
+    var v = hdr[c];
+    if (typeof v === 'number' && v >= 202000) {
+      var y = Math.floor(v / 100);
+      var m = v % 100 - 1;
+      months.push(mo[m] + '-' + String(y).slice(2));
+      ci.push(c);
+    }
+  }
+  function vals(ri) {
+    var row = rows[ri] || [];
+    return ci.map(function(c) { return typeof row[c] === 'number' ? row[c] : 0; });
+  }
+  return { months: months, ingresos: vals(10), volumen: vals(11), tasa: vals(12), gastos: vals(13) };
 }
 
 // ═══ UTILS ═══
@@ -720,6 +802,12 @@ function renderDashboard() {
 
   renderCharts(d, li);
   renderTable(d, li);
+
+  // New sections (always shown, not view-dependent)
+  var selYear = d.years[li] || currentYear || '2025';
+  renderMetricsSection(main, selYear);
+  renderRRHHSection(main, selYear);
+  renderLoansSection(main, selYear);
 }
 
 // Compute YTD sums: returns { months for selYear, same-period sum for prevYear }
@@ -1097,6 +1185,303 @@ function renderTable(d, li) {
   table.appendChild(tbody);
 }
 
+// ═══ METRICS SECTION ═══
+var chartMAU = null, chartHC = null, chartLoans = null;
+
+function filterByYear(months, selYear) {
+  var yy = selYear.slice(2);
+  var prevYY = String(parseInt(selYear) - 1).slice(2);
+  var indices = [], labels = [];
+  months.forEach(function(m, i) {
+    var my = m.split('-')[1];
+    if (my === prevYY || my === yy) { indices.push(i); labels.push(m); }
+  });
+  return { indices: indices, labels: labels };
+}
+
+function latestMonthInYear(months, data, selYear) {
+  var yy = selYear.slice(2);
+  var latest = -1;
+  months.forEach(function(m, i) {
+    if (m.split('-')[1] === yy && data[i] > 0) latest = i;
+  });
+  return latest;
+}
+
+function sameMonthPrevYear(months, idx) {
+  if (idx < 0) return -1;
+  var parts = months[idx].split('-');
+  var prevYY = String(parseInt('20' + parts[1]) - 1).slice(2);
+  var target = parts[0] + '-' + prevYY;
+  for (var i = 0; i < months.length; i++) {
+    if (months[i] === target) return i;
+  }
+  return -1;
+}
+
+function renderMetricsSection(main, selYear) {
+  var md = DATA.metrics;
+  if (!md) return;
+
+  main.appendChild(el('hr', { class: 'section-divider' }));
+
+  var wrap = el('div', { class: 'animate-in delay-1' });
+  var hdr = el('div', { class: 'section-header' });
+  var title = el('div');
+  title.appendChild(el('div', { class: 'section-title' }, 'Metricas de Plataforma'));
+  title.appendChild(el('div', { class: 'section-subtitle' }, 'MAU, MTU y Transacciones'));
+  hdr.appendChild(title);
+  wrap.appendChild(hdr);
+
+  // KPI cards
+  var li = latestMonthInYear(md.months, md.mau.total, selYear);
+  if (li < 0) li = md.months.length - 1;
+  var pi = sameMonthPrevYear(md.months, li);
+
+  var mauNow = md.mau.total[li] || 0;
+  var mtuNow = md.mtu.total[li] || 0;
+  var txNow = md.tx.total[li] || 0;
+  var convNow = mauNow ? (mtuNow / mauNow * 100) : 0;
+
+  var mauPrev = pi >= 0 ? md.mau.total[pi] : 0;
+  var mtuPrev = pi >= 0 ? md.mtu.total[pi] : 0;
+  var txPrev = pi >= 0 ? md.tx.total[pi] : 0;
+  var convPrev = mauPrev ? (mtuPrev / mauPrev * 100) : 0;
+
+  var monthLabel = md.months[li] || '';
+
+  var kpis = [
+    { label: 'MAU TOTAL ' + monthLabel, value: fmtFull(mauNow), change: pct(mauNow, mauPrev), cls: pct(mauNow, mauPrev) > 0 ? 'positive' : 'negative' },
+    { label: 'MTU TOTAL ' + monthLabel, value: fmtFull(mtuNow), change: pct(mtuNow, mtuPrev), cls: pct(mtuNow, mtuPrev) > 0 ? 'positive' : 'negative' },
+    { label: 'TRANSACCIONES ' + monthLabel, value: fmtFull(txNow), change: pct(txNow, txPrev), cls: pct(txNow, txPrev) > 0 ? 'positive' : 'negative' },
+    { label: 'CONVERSION MTU/MAU', value: convNow.toFixed(1) + '%', change: convNow - convPrev, suffix: 'pp', cls: convNow > convPrev ? 'positive' : 'negative' },
+  ];
+
+  var grid = el('section', { class: 'kpi-grid-4' });
+  kpis.forEach(function(k, i) {
+    var card = el('div', { class: 'kpi-card ' + k.cls + ' animate-in delay-' + (i+1) });
+    card.appendChild(el('div', { class: 'kpi-label' }, k.label));
+    card.appendChild(el('div', { class: 'kpi-value' }, k.value));
+    var meta = el('div', { class: 'kpi-meta' });
+    if (k.change != null) {
+      var dir = k.change > 0 ? 'up' : 'down';
+      meta.appendChild(el('span', { class: 'kpi-change ' + dir }, (k.change > 0 ? '+' : '') + k.change.toFixed(1) + (k.suffix || '%')));
+    }
+    meta.appendChild(el('span', { class: 'kpi-period' }, 'vs mismo mes año anterior'));
+    card.appendChild(meta);
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+
+  // MAU chart by country
+  var chartCard = el('div', { class: 'chart-card animate-in delay-5' });
+  var canvas = el('canvas', { id: 'mauChart' });
+  chartCard.appendChild(canvas);
+  wrap.appendChild(chartCard);
+  main.appendChild(wrap);
+
+  var f = filterByYear(md.months, selYear);
+  function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
+
+  if (chartMAU) chartMAU.destroy();
+  chartMAU = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: f.labels,
+      datasets: [
+        { label: 'MAU Chile', data: pick(md.mau.cl), borderColor: '#3b82f6', borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'MAU Colombia', data: pick(md.mau.co), borderColor: '#8b5cf6', borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'MAU Peru', data: pick(md.mau.pe), borderColor: '#06b6d4', borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'MAU Argentina', data: pick(md.mau.ar), borderColor: '#f59e0b', borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'MTU Total', data: pick(md.mtu.total), borderColor: '#22c55e', borderWidth: 2, borderDash: [4,4], tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
+        title: { display: true, text: 'MAU por Pais + MTU Total', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } },
+        tooltip: { backgroundColor: '#1a1e28', titleColor: '#e8eaf0', bodyColor: '#8890a4', borderColor: '#222838', borderWidth: 1, padding: 12,
+          titleFont: { family: "'DM Sans'", weight: '600' }, bodyFont: { family: "'JetBrains Mono'", size: 11 },
+          callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + fmtFull(ctx.raw); } }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
+        y: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return fmtK(v); } }, grid: { color: 'rgba(34,40,56,0.5)' } }
+      }
+    }
+  });
+}
+
+// ═══ RRHH SECTION ═══
+function renderRRHHSection(main, selYear) {
+  var rd = DATA.rrhh;
+  if (!rd) return;
+
+  main.appendChild(el('hr', { class: 'section-divider' }));
+
+  var wrap = el('div', { class: 'animate-in delay-1' });
+  var hdr = el('div', { class: 'section-header' });
+  var title = el('div');
+  title.appendChild(el('div', { class: 'section-title' }, 'Equipo'));
+  title.appendChild(el('div', { class: 'section-subtitle' }, 'Headcount por pais'));
+  hdr.appendChild(title);
+  wrap.appendChild(hdr);
+
+  // KPI card
+  var li = latestMonthInYear(rd.months, rd.total, selYear);
+  if (li < 0) li = rd.months.length - 1;
+  var pi = sameMonthPrevYear(rd.months, li);
+  var hcNow = rd.total[li] || 0;
+  var hcPrev = pi >= 0 ? rd.total[pi] : 0;
+
+  var grid = el('section', { class: 'kpi-grid-4' });
+  var kpis = [
+    { label: 'HEADCOUNT ' + (rd.months[li] || ''), value: String(hcNow), change: pct(hcNow, hcPrev), cls: 'neutral' },
+    { label: 'CHILE', value: String(rd.chile[li] || 0), change: null, cls: 'neutral' },
+    { label: 'COLOMBIA', value: String(rd.colombia[li] || 0), change: null, cls: 'neutral' },
+    { label: 'PERU', value: String(rd.peru[li] || 0), change: null, cls: 'neutral' },
+  ];
+  kpis.forEach(function(k, i) {
+    var card = el('div', { class: 'kpi-card ' + k.cls + ' animate-in delay-' + (i+1) });
+    card.appendChild(el('div', { class: 'kpi-label' }, k.label));
+    card.appendChild(el('div', { class: 'kpi-value' }, k.value));
+    if (k.change != null) {
+      var meta = el('div', { class: 'kpi-meta' });
+      var dir = k.change > 0 ? 'up' : 'down';
+      meta.appendChild(el('span', { class: 'kpi-change ' + dir }, (k.change > 0 ? '+' : '') + k.change.toFixed(1) + '%'));
+      meta.appendChild(el('span', { class: 'kpi-period' }, 'vs año anterior'));
+      card.appendChild(meta);
+    }
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+
+  // Chart
+  var chartCard = el('div', { class: 'chart-card animate-in delay-5' });
+  var canvas = el('canvas', { id: 'hcChart' });
+  chartCard.appendChild(canvas);
+  wrap.appendChild(chartCard);
+  main.appendChild(wrap);
+
+  var f = filterByYear(rd.months, selYear);
+  function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
+
+  if (chartHC) chartHC.destroy();
+  chartHC = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: f.labels,
+      datasets: [
+        { label: 'Chile', data: pick(rd.chile), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'Colombia', data: pick(rd.colombia), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.08)', fill: true, borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'Peru', data: pick(rd.peru), borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.08)', fill: true, borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
+        title: { display: true, text: 'Headcount por Pais', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } },
+        tooltip: { backgroundColor: '#1a1e28', titleColor: '#e8eaf0', bodyColor: '#8890a4', borderColor: '#222838', borderWidth: 1, padding: 12,
+          titleFont: { family: "'DM Sans'", weight: '600' }, bodyFont: { family: "'JetBrains Mono'", size: 11 } }
+      },
+      scales: {
+        x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
+        y: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 10 } }, grid: { color: 'rgba(34,40,56,0.5)' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ═══ LOANS SECTION ═══
+function renderLoansSection(main, selYear) {
+  var ld = DATA.loans;
+  if (!ld) return;
+
+  main.appendChild(el('hr', { class: 'section-divider' }));
+
+  var wrap = el('div', { class: 'animate-in delay-1' });
+  var hdr = el('div', { class: 'section-header' });
+  var title = el('div');
+  title.appendChild(el('div', { class: 'section-title' }, 'Prestamos'));
+  title.appendChild(el('div', { class: 'section-subtitle' }, 'Volumen, ingresos y tasa promedio (USD)'));
+  hdr.appendChild(title);
+  wrap.appendChild(hdr);
+
+  // KPI cards
+  var li = latestMonthInYear(ld.months, ld.volumen, selYear);
+  if (li < 0) li = ld.months.length - 1;
+  var pi = sameMonthPrevYear(ld.months, li);
+
+  var volNow = ld.volumen[li] || 0;
+  var ingNow = ld.ingresos[li] || 0;
+  var tasaNow = ld.tasa[li] || 0;
+  var volPrev = pi >= 0 ? ld.volumen[pi] : 0;
+  var ingPrev = pi >= 0 ? ld.ingresos[pi] : 0;
+
+  var grid = el('section', { class: 'kpi-grid-4' });
+  var kpis = [
+    { label: 'VOLUMEN ' + (ld.months[li] || ''), value: '$' + fmt(volNow), change: pct(volNow, volPrev), cls: pct(volNow, volPrev) > 0 ? 'positive' : 'negative' },
+    { label: 'INGRESOS ' + (ld.months[li] || ''), value: '$' + fmt(ingNow), change: pct(ingNow, ingPrev), cls: pct(ingNow, ingPrev) > 0 ? 'positive' : 'negative' },
+    { label: 'TASA PROMEDIO', value: (tasaNow * 100).toFixed(2) + '%', change: null, cls: 'neutral' },
+    { label: 'GASTOS ' + (ld.months[li] || ''), value: '$' + fmt(ld.gastos[li] || 0), change: null, cls: 'neutral' },
+  ];
+  kpis.forEach(function(k, i) {
+    var card = el('div', { class: 'kpi-card ' + k.cls + ' animate-in delay-' + (i+1) });
+    card.appendChild(el('div', { class: 'kpi-label' }, k.label));
+    card.appendChild(el('div', { class: 'kpi-value' }, k.value));
+    var meta = el('div', { class: 'kpi-meta' });
+    if (k.change != null) {
+      var dir = k.change > 0 ? 'up' : 'down';
+      meta.appendChild(el('span', { class: 'kpi-change ' + dir }, (k.change > 0 ? '+' : '') + k.change.toFixed(1) + '%'));
+      meta.appendChild(el('span', { class: 'kpi-period' }, 'vs año anterior'));
+    }
+    card.appendChild(meta);
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+
+  // Chart
+  var chartCard = el('div', { class: 'chart-card animate-in delay-5' });
+  var canvas = el('canvas', { id: 'loansChart' });
+  chartCard.appendChild(canvas);
+  wrap.appendChild(chartCard);
+  main.appendChild(wrap);
+
+  var f = filterByYear(ld.months, selYear);
+  function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
+
+  if (chartLoans) chartLoans.destroy();
+  chartLoans = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: f.labels,
+      datasets: [
+        { label: 'Volumen (USD)', data: pick(ld.volumen), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10, yAxisID: 'y' },
+        { label: 'Ingresos (USD)', data: pick(ld.ingresos), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)', fill: true, borderWidth: 2, tension: 0.3, pointRadius: 0, pointHitRadius: 10, yAxisID: 'y1' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
+        title: { display: true, text: 'Volumen e Ingresos de Prestamos', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } },
+        tooltip: { backgroundColor: '#1a1e28', titleColor: '#e8eaf0', bodyColor: '#8890a4', borderColor: '#222838', borderWidth: 1, padding: 12,
+          titleFont: { family: "'DM Sans'", weight: '600' }, bodyFont: { family: "'JetBrains Mono'", size: 11 },
+          callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + fmtFull(ctx.raw); } }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
+        y: { type: 'linear', position: 'left', ticks: { color: '#f59e0b', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return '$' + fmtK(v); } }, grid: { color: 'rgba(34,40,56,0.5)' } },
+        y1: { type: 'linear', position: 'right', ticks: { color: '#22c55e', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return '$' + fmtK(v); } }, grid: { drawOnChartArea: false } },
+      }
+    }
+  });
+}
+
 // ═══ EVENTS ═══
 document.getElementById('viewSelect').addEventListener('change', function(e) {
   currentView = e.target.value;
@@ -1121,12 +1506,18 @@ document.getElementById('genDate').textContent = new Date().toLocaleDateString('
       fetchSheet(SHEET_NAMES.chile),
       fetchSheet(SHEET_NAMES.peru),
       fetchSheet(SHEET_NAMES.colombia),
+      fetchSheet('METRICS_LIVE', 'A1:CB24'),
+      fetchSheet('RRHH_LIVE', 'A25:CB31'),
+      fetchSheet('LOANS_LIVE', 'A1:CB14'),
     ]);
 
     DATA.consolidated = parseSheet(sheets[0]);
     DATA.chile = parseSheet(sheets[1]);
     DATA.peru = parseSheet(sheets[2]);
     DATA.colombia = parseSheet(sheets[3]);
+    DATA.metrics = parseMetrics(sheets[4]);
+    DATA.rrhh = parseRRHH(sheets[5]);
+    DATA.loans = parseLoans(sheets[6]);
 
     renderDashboard();
   } catch (err) {
