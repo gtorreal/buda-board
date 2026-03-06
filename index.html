@@ -349,7 +349,13 @@ table.ebitda th.col-year {
   font-size: 0.75rem;
   border-left: 2px solid var(--border-light);
   border-right: 2px solid var(--border-light);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
 }
+
+table.ebitda th.col-year:hover { color: var(--accent); }
+table.ebitda th.col-year.expanded { color: var(--accent); }
 
 table.ebitda td.col-year {
   font-weight: 600;
@@ -440,11 +446,6 @@ table.ebitda td.col-year {
       <option value="peru">Buda SA (Peru)</option>
       <option value="colombia">Buda SAS (Colombia)</option>
     </select>
-    <div class="period-toggle" id="periodToggle">
-      <button data-period="monthly" class="active">Mensual</button>
-      <button data-period="quarterly">Trimestral</button>
-      <button data-period="annual">Anual</button>
-    </div>
   </div>
 </header>
 
@@ -498,6 +499,7 @@ let DATA = {};           // Parsed data per view
 let currentView = 'consolidated';
 let currentPeriod = 'monthly';
 let currentYear = null;  // null = latest year with data
+let expandedYear = null; // which year is expanded in the table
 
 // ═══ API ═══
 async function fetchSheet(sheetName) {
@@ -959,110 +961,89 @@ function sumQ(arr) {
   return r;
 }
 
+function getMonthIndicesForYear(d, year) {
+  var yy = year.slice(2);
+  var indices = [];
+  d.months.forEach(function(m, i) { if (m.split('-')[1] === yy) indices.push(i); });
+  return indices;
+}
+
 function renderTable(d, li) {
   var table = document.getElementById('ebitdaTable');
   if (!table) return;
   table.replaceChildren();
 
-  var headers, rows;
+  // Auto-expand the selected year from dropdown
+  var selYear = d.years[li] || d.years[d.years.length - 1];
+  if (expandedYear === null) expandedYear = selYear;
 
-  if (currentPeriod === 'annual') {
-    headers = d.years;
-    rows = [
-      { l: 'Ingresos Netos', v: d.YT.ingresosNetos, t: 'header' },
-      { l: 'Comisiones', v: d.YT.comisiones, t: 'sub' },
-      { l: 'Simple', v: d.YT.simple, t: 'subsub' },
-      { l: 'Trader', v: d.YT.trader, t: 'subsub' },
-      { l: 'Loans', v: d.YT.loans, t: 'sub' },
-      { l: 'OTC', v: d.YT.otc, t: 'sub' },
-      { l: 'Otros ingresos', v: d.YT.otrosIngresos, t: 'sub' },
-      { t: 'sep' },
-      { l: 'Egresos Netos', v: d.YT.egresosNetos, t: 'header' },
-      { l: 'Costos de operacion', v: d.YT.costosOp, t: 'sub' },
-      { l: 'Remuneraciones', v: d.YT.remuneraciones, t: 'subsub' },
-      { l: 'Gastos admin y ventas', v: d.YT.gastosAdmin, t: 'sub' },
-      { t: 'sep' },
-      { l: 'EBITDA Operacional', v: d.YT.ebitdaOp, t: 'total' },
-      { l: 'Margen EBITDA', v: d.YT.ingresosNetos.map(function(r, i) { return r ? (d.YT.ebitdaOp[i] / r * 100) : null; }), t: 'pct' },
-      { t: 'sep' },
-      { l: 'Buda Loans (gasto)', v: d.YT.budaLoans, t: 'sub' },
-      { l: 'Buda Bridge (gasto)', v: d.YT.budaBridge, t: 'sub' },
-    ];
-  } else if (currentPeriod === 'quarterly') {
-    var qh = [];
-    var startYear = parseInt(d.years[0]) || 2021;
-    var endYear = parseInt(d.years[d.years.length - 1]) || 2026;
-    for (var y = startYear; y <= endYear; y++) {
-      for (var q = 1; q <= 4; q++) {
-        // Only add quarters that have corresponding months
-        var qMonths = d.months.filter(function(m) {
-          var yr = '20' + m.split('-')[1];
-          var moIdx = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(m.split('-')[0]);
-          return parseInt(yr) === y && Math.floor(moIdx / 3) + 1 === q;
-        });
-        if (qMonths.length > 0) qh.push('Q' + q + ' ' + y);
-      }
+  // Build column structure: for each year, either expanded (months + total) or collapsed (total only)
+  var cols = []; // { header, yearIdx, monthIdx, isYear, isMonth, year }
+  d.years.forEach(function(year, yi) {
+    if (year === expandedYear) {
+      var mIndices = getMonthIndicesForYear(d, year);
+      mIndices.forEach(function(mi) {
+        cols.push({ header: d.months[mi], yearIdx: yi, monthIdx: mi, isYear: false, isMonth: true, year: year });
+      });
     }
-    headers = qh;
-    rows = [
-      { l: 'Ingresos Netos', v: sumQ(d.M.ingresosNetos), t: 'header' },
-      { l: 'Comisiones', v: sumQ(d.M.comisiones), t: 'sub' },
-      { l: 'Loans', v: sumQ(d.M.loans), t: 'sub' },
-      { l: 'OTC', v: sumQ(d.M.otc), t: 'sub' },
-      { t: 'sep' },
-      { l: 'Egresos Netos', v: sumQ(d.M.egresosNetos), t: 'header' },
-      { l: 'Costos de operacion', v: sumQ(d.M.costosOp), t: 'sub' },
-      { l: 'Gastos admin y ventas', v: sumQ(d.M.gastosAdmin), t: 'sub' },
-      { t: 'sep' },
-      { l: 'EBITDA Operacional', v: sumQ(d.M.ebitdaOp), t: 'total' },
-    ];
-  } else {
-    // Monthly: show last 14 months + selected year total
-    var latestYear = d.years[li] || '2025';
-    var si = Math.max(0, d.months.length - 14);
-    var monthHeaders = d.months.slice(si);
-    headers = monthHeaders.concat([latestYear]);
-    var sl = function(arr) { return arr.slice(si); };
-    var yi = monthHeaders.length; // index of the year column
+    cols.push({ header: year, yearIdx: yi, monthIdx: -1, isYear: true, isMonth: false, year: year });
+  });
 
-    rows = [
-      { l: 'Ingresos Netos', v: sl(d.M.ingresosNetos).concat([d.YT.ingresosNetos[li]]), t: 'header', yi: yi },
-      { l: 'Comisiones', v: sl(d.M.comisiones).concat([d.YT.comisiones[li]]), t: 'sub', yi: yi },
-      { l: 'Loans', v: sl(d.M.loans).concat([d.YT.loans[li]]), t: 'sub', yi: yi },
-      { l: 'OTC', v: sl(d.M.otc).concat([d.YT.otc[li]]), t: 'sub', yi: yi },
-      { t: 'sep' },
-      { l: 'Egresos Netos', v: sl(d.M.egresosNetos).concat([d.YT.egresosNetos[li]]), t: 'header', yi: yi },
-      { l: 'Costos de operacion', v: sl(d.M.costosOp).concat([d.YT.costosOp[li]]), t: 'sub', yi: yi },
-      { l: 'Gastos admin y ventas', v: sl(d.M.gastosAdmin).concat([d.YT.gastosAdmin[li]]), t: 'sub', yi: yi },
-      { t: 'sep' },
-      { l: 'EBITDA Operacional', v: sl(d.M.ebitdaOp).concat([d.YT.ebitdaOp[li]]), t: 'total', yi: yi },
-      {
-        l: 'Margen EBITDA',
-        v: sl(d.M.ingresosNetos).map(function(r, i) {
-          return r ? (sl(d.M.ebitdaOp)[i] / r * 100) : null;
-        }).concat([d.YT.ingresosNetos[li] ? (d.YT.ebitdaOp[li] / d.YT.ingresosNetos[li] * 100) : null]),
-        t: 'pct', yi: yi
-      },
-    ];
-  }
+  // Row definitions
+  var rowDefs = [
+    { l: 'Ingresos Netos', field: 'ingresosNetos', t: 'header' },
+    { l: 'Comisiones', field: 'comisiones', t: 'sub' },
+    { l: 'Simple', field: 'simple', t: 'subsub' },
+    { l: 'Trader', field: 'trader', t: 'subsub' },
+    { l: 'Loans', field: 'loans', t: 'sub' },
+    { l: 'OTC', field: 'otc', t: 'sub' },
+    { l: 'Otros ingresos', field: 'otrosIngresos', t: 'sub' },
+    { t: 'sep' },
+    { l: 'Egresos Netos', field: 'egresosNetos', t: 'header' },
+    { l: 'Costos de operacion', field: 'costosOp', t: 'sub' },
+    { l: 'Remuneraciones', field: 'remuneraciones', t: 'subsub' },
+    { l: 'Gastos admin y ventas', field: 'gastosAdmin', t: 'sub' },
+    { t: 'sep' },
+    { l: 'EBITDA Operacional', field: 'ebitdaOp', t: 'total' },
+    { l: 'Margen EBITDA', t: 'pct' },
+    { t: 'sep' },
+    { l: 'Buda Loans (gasto)', field: 'budaLoans', t: 'sub' },
+    { l: 'Buda Bridge (gasto)', field: 'budaBridge', t: 'sub' },
+  ];
 
   // Build thead
   var thead = el('thead');
   var hRow = el('tr');
   hRow.appendChild(el('th', {}, ''));
-  headers.forEach(function(h, i) {
-    var isYr = (h.length === 4 && !h.startsWith('Q')) || (rows[0] && rows[0].yi !== undefined && i === rows[0].yi);
-    hRow.appendChild(el('th', { class: isYr ? 'col-year' : '' }, h));
+  cols.forEach(function(col) {
+    var th;
+    if (col.isYear) {
+      var isExpanded = col.year === expandedYear;
+      var arrow = isExpanded ? ' \u25BC' : ' \u25B6';
+      th = el('th', { class: 'col-year' + (isExpanded ? ' expanded' : '') }, col.header + arrow);
+      th.addEventListener('click', function() {
+        expandedYear = isExpanded ? null : col.year;
+        renderTable(d, li);
+        // Scroll to the year column
+        setTimeout(function() {
+          var yearTh = table.querySelector('th.col-year.expanded');
+          if (yearTh) yearTh.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+        }, 50);
+      });
+    } else {
+      th = el('th', {}, col.header);
+    }
+    hRow.appendChild(th);
   });
   thead.appendChild(hRow);
   table.appendChild(thead);
 
   // Build tbody
   var tbody = el('tbody');
-  rows.forEach(function(row) {
+  rowDefs.forEach(function(row) {
     if (row.t === 'sep') {
       var tr = el('tr', { class: 'row-separator' });
-      tr.appendChild(el('td', { colspan: String(headers.length + 1) }));
+      tr.appendChild(el('td', { colspan: String(cols.length + 1) }));
       tbody.appendChild(tr);
       return;
     }
@@ -1071,16 +1052,30 @@ function renderTable(d, li) {
     var tr = el('tr', { class: cls });
     tr.appendChild(el('td', {}, row.l));
 
-    row.v.forEach(function(v, i) {
-      var isYr = (headers[i] && headers[i].length === 4 && !headers[i].startsWith('Q')) || (row.yi !== undefined && i === row.yi);
-      var cellCls = isYr ? 'col-year' : '';
+    cols.forEach(function(col) {
+      var v, cellCls = col.isYear ? 'col-year' : '';
 
       if (row.t === 'pct') {
+        // Margin = ebitda / ingresos * 100
+        var ing, ebt;
+        if (col.isYear) {
+          ing = d.YT.ingresosNetos[col.yearIdx];
+          ebt = d.YT.ebitdaOp[col.yearIdx];
+        } else {
+          ing = d.M.ingresosNetos[col.monthIdx] || 0;
+          ebt = d.M.ebitdaOp[col.monthIdx] || 0;
+        }
+        v = ing ? (ebt / ing * 100) : null;
         var txt = v != null ? v.toFixed(1) + '%' : '\u2014';
         if (v > 0) cellCls += ' positive';
         else if (v < 0) cellCls += ' negative';
         tr.appendChild(el('td', { class: cellCls }, txt));
       } else {
+        if (col.isYear) {
+          v = d.YT[row.field][col.yearIdx] || 0;
+        } else {
+          v = d.M[row.field][col.monthIdx] || 0;
+        }
         if ((row.t === 'total' || row.t === 'header') && v < 0) cellCls += ' negative';
         else if (row.t === 'total' && v > 0) cellCls += ' positive';
         tr.appendChild(el('td', { class: cellCls }, fmtFull(v)));
@@ -1093,15 +1088,6 @@ function renderTable(d, li) {
 }
 
 // ═══ EVENTS ═══
-document.getElementById('periodToggle').addEventListener('click', function(e) {
-  if (e.target.tagName !== 'BUTTON') return;
-  document.querySelectorAll('#periodToggle button').forEach(function(b) { b.classList.remove('active'); });
-  e.target.classList.add('active');
-  currentPeriod = e.target.dataset.period;
-  var d = DATA[currentView];
-  renderTable(d, selectedYearIdx(d));
-});
-
 document.getElementById('viewSelect').addEventListener('change', function(e) {
   currentView = e.target.value;
   renderDashboard();
@@ -1109,6 +1095,7 @@ document.getElementById('viewSelect').addEventListener('change', function(e) {
 
 document.getElementById('yearSelect').addEventListener('change', function(e) {
   currentYear = e.target.value;
+  expandedYear = e.target.value;
   renderDashboard();
 });
 
