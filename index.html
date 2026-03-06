@@ -221,6 +221,29 @@ body::before {
 
 .chart-card canvas { width: 100% !important; height: 280px !important; }
 
+.chart-range-toggle {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 0.75rem;
+  justify-content: flex-end;
+}
+
+.chart-range-toggle button {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chart-range-toggle button:hover:not(.active) { color: var(--text-secondary); border-color: var(--border-light); }
+.chart-range-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 /* Entity Cards */
 .entity-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
 
@@ -510,6 +533,7 @@ let currentView = 'consolidated';
 let currentPeriod = 'monthly';
 let currentYear = null;  // null = latest year with data
 let expandedYear = null; // which year is expanded in the table
+let chartRange = '2y';   // '1y', '2y', '4y', 'all'
 
 // ═══ API ═══
 async function fetchSheet(sheetName, customRange) {
@@ -771,6 +795,7 @@ function renderDashboard() {
   chartWrap.appendChild(chartHeader);
   var chartsGrid = el('section', { class: 'charts-grid' });
   var chartCard1 = el('div', { class: 'chart-card' });
+  chartCard1.appendChild(createRangeToggle());
   var canvas1 = el('canvas', { id: 'revenueChart' });
   chartCard1.appendChild(canvas1);
   chartsGrid.appendChild(chartCard1);
@@ -974,21 +999,11 @@ function renderCharts(d, li) {
     callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + fmtFull(ctx.raw); } }
   };
 
-  // Filter months for selected year + previous year
   var selYear = d.years[li] || '2025';
   var prevYear = String(parseInt(selYear) - 1);
-  var selYY = selYear.slice(2);
-  var prevYY = prevYear.slice(2);
-  var chartIndices = [];
-  var chartLabels = [];
-  d.months.forEach(function(m, i) {
-    var yy = m.split('-')[1];
-    if (yy === prevYY || yy === selYY) {
-      chartIndices.push(i);
-      chartLabels.push(m);
-    }
-  });
-  function pickMonths(arr) { return chartIndices.map(function(i) { return arr[i] || 0; }); }
+  var f = filterMonthsByRange(d.months, selYear, chartRange);
+  var chartLabels = f.labels;
+  function pickMonths(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
   if (chart1) chart1.destroy();
   chart1 = new Chart(document.getElementById('revenueChart'), {
@@ -1006,7 +1021,7 @@ function renderCharts(d, li) {
       plugins: {
         legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
         tooltip: tooltipOpts,
-        title: { display: true, text: 'Ingresos vs Egresos vs EBITDA (' + prevYear + ' - ' + selYear + ')', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } }
+        title: { display: true, text: 'Ingresos vs Egresos vs EBITDA', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } }
       },
       scales: {
         x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
@@ -1188,20 +1203,40 @@ function renderTable(d, li) {
 // ═══ METRICS SECTION ═══
 var chartMAU = null, chartHC = null, chartLoans = null;
 
-function filterByYear(months, selYear) {
-  var yy = selYear.slice(2);
-  var prevYY = String(parseInt(selYear) - 1).slice(2);
+function filterMonthsByRange(months, selYear, range) {
+  if (range === 'all') {
+    var indices = [], labels = [];
+    months.forEach(function(m, i) { indices.push(i); labels.push(m); });
+    return { indices: indices, labels: labels };
+  }
+  var numYears = range === '1y' ? 1 : range === '2y' ? 2 : 4;
+  var endY = parseInt(selYear);
+  var startY = endY - numYears + 1;
+  var suffixes = [];
+  for (var y = startY; y <= endY; y++) suffixes.push(String(y).slice(2));
+
   var indices = [], labels = [];
   months.forEach(function(m, i) {
-    var my = m.split('-')[1];
-    if (my === prevYY || my === yy) { indices.push(i); labels.push(m); }
+    if (suffixes.indexOf(m.split('-')[1]) !== -1) { indices.push(i); labels.push(m); }
   });
-  // Fallback: if no data matches selected year, show last 24 months
+  // Fallback: show last N*12 months if no data for selected years
   if (indices.length === 0 && months.length > 0) {
-    var start = Math.max(0, months.length - 24);
+    var start = Math.max(0, months.length - numYears * 12);
     for (var i = start; i < months.length; i++) { indices.push(i); labels.push(months[i]); }
   }
   return { indices: indices, labels: labels };
+}
+
+function createRangeToggle() {
+  var toggle = el('div', { class: 'chart-range-toggle' });
+  [{ v: '1y', l: '1Y' }, { v: '2y', l: '2Y' }, { v: '4y', l: '4Y' }, { v: 'all', l: 'All' }].forEach(function(opt) {
+    var btn = el('button', { class: chartRange === opt.v ? 'active' : '' }, opt.l);
+    btn.addEventListener('click', function() {
+      if (chartRange !== opt.v) { chartRange = opt.v; renderDashboard(); }
+    });
+    toggle.appendChild(btn);
+  });
+  return toggle;
 }
 
 function latestMonthInYear(months, data, selYear) {
@@ -1280,12 +1315,13 @@ function renderMetricsSection(main, selYear) {
 
   // MAU chart by country
   var chartCard = el('div', { class: 'chart-card animate-in delay-5' });
+  chartCard.appendChild(createRangeToggle());
   var canvas = el('canvas', { id: 'mauChart' });
   chartCard.appendChild(canvas);
   wrap.appendChild(chartCard);
   main.appendChild(wrap);
 
-  var f = filterByYear(md.months, selYear);
+  var f = filterMonthsByRange(md.months, selYear, chartRange);
   function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
   if (chartMAU) chartMAU.destroy();
@@ -1365,12 +1401,13 @@ function renderRRHHSection(main, selYear) {
 
   // Chart
   var chartCard = el('div', { class: 'chart-card animate-in delay-5' });
+  chartCard.appendChild(createRangeToggle());
   var canvas = el('canvas', { id: 'hcChart' });
   chartCard.appendChild(canvas);
   wrap.appendChild(chartCard);
   main.appendChild(wrap);
 
-  var f = filterByYear(rd.months, selYear);
+  var f = filterMonthsByRange(rd.months, selYear, chartRange);
   function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
   if (chartHC) chartHC.destroy();
@@ -1450,12 +1487,13 @@ function renderLoansSection(main, selYear) {
 
   // Chart
   var chartCard = el('div', { class: 'chart-card animate-in delay-5' });
+  chartCard.appendChild(createRangeToggle());
   var canvas = el('canvas', { id: 'loansChart' });
   chartCard.appendChild(canvas);
   wrap.appendChild(chartCard);
   main.appendChild(wrap);
 
-  var f = filterByYear(ld.months, selYear);
+  var f = filterMonthsByRange(ld.months, selYear, chartRange);
   function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
   if (chartLoans) chartLoans.destroy();
