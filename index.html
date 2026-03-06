@@ -1400,6 +1400,7 @@ function renderMetricsSection(main, selYear) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
         title: { display: true, text: 'MAU por Pais + MTU Total', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } },
@@ -1484,6 +1485,7 @@ function renderRRHHSection(main, selYear) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
         title: { display: true, text: 'Headcount por Pais', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } },
@@ -1569,6 +1571,7 @@ function renderLoansSection(main, selYear) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
         title: { display: true, text: 'Volumen e Ingresos de Prestamos', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } },
