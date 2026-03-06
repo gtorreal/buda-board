@@ -655,8 +655,10 @@ function renderDashboard() {
     var entHeader = el('div', { class: 'section-header' });
     var entTitle = el('div');
     var selYear = d.years[li] || '2025';
+    var entYtd = ytdSums(d, selYear);
+    var entLabel = entYtd.isPartial ? 'Datos YTD ' + selYear + ' (USD)' : 'Datos acumulados ' + selYear + ' (USD)';
     entTitle.appendChild(el('div', { class: 'section-title' }, 'Breakdown por Entidad'));
-    entTitle.appendChild(el('div', { class: 'section-subtitle' }, 'Datos acumulados ' + selYear + ' (USD)'));
+    entTitle.appendChild(el('div', { class: 'section-subtitle' }, entLabel));
     entHeader.appendChild(entTitle);
     entWrap.appendChild(entHeader);
     var entGrid = el('section', { class: 'entity-grid', id: 'entityGrid' });
@@ -708,33 +710,84 @@ function renderDashboard() {
   renderTable(d, li);
 }
 
+// Compute YTD sums: returns { months for selYear, same-period sum for prevYear }
+function ytdSums(d, selYear) {
+  var selYY = selYear.slice(2);
+  var prevYY = String(parseInt(selYear) - 1).slice(2);
+
+  // Find month indices for selected year that have data
+  var selMonthIndices = [];
+  d.months.forEach(function(m, i) {
+    if (m.split('-')[1] === selYY && d.M.ingresosNetos[i] !== 0) selMonthIndices.push(i);
+  });
+
+  // Get the month names (Jan, Feb, etc.) for the selected year's data
+  var selMonthNames = selMonthIndices.map(function(i) { return d.months[i].split('-')[0]; });
+
+  // Find matching month indices in prev year (same months only)
+  var prevMonthIndices = [];
+  d.months.forEach(function(m, i) {
+    if (m.split('-')[1] === prevYY && selMonthNames.indexOf(m.split('-')[0]) !== -1) prevMonthIndices.push(i);
+  });
+
+  function sum(arr, indices) {
+    return indices.reduce(function(a, i) { return a + (arr[i] || 0); }, 0);
+  }
+
+  return {
+    isPartial: selMonthIndices.length > 0 && selMonthIndices.length < 12,
+    monthCount: selMonthIndices.length,
+    sel: function(field) { return sum(d.M[field], selMonthIndices); },
+    prev: function(field) { return sum(d.M[field], prevMonthIndices); }
+  };
+}
+
 function renderKPIs(d, grid, li) {
   var pi = Math.max(0, li - 1);
   var latestYear = d.years[li] || '2025';
   var prevYear = d.years[pi] || '2024';
 
-  var fy25Rev = d.YT.ingresosNetos[li];
-  var fy24Rev = d.YT.ingresosNetos[pi];
+  var ytd = ytdSums(d, latestYear);
+  var isYTD = ytd.isPartial;
+
+  // Use YTD monthly sums for partial years, yearly totals for complete years
+  var fy25Rev, fy24Rev, fy25Ebitda, prevEbitda, fy25Costs, prevCosts, fy25Loans, prevLoans;
+  if (isYTD) {
+    fy25Rev = ytd.sel('ingresosNetos');
+    fy24Rev = ytd.prev('ingresosNetos');
+    fy25Ebitda = ytd.sel('ebitdaOp');
+    prevEbitda = ytd.prev('ebitdaOp');
+    fy25Costs = ytd.sel('egresosNetos');
+    prevCosts = ytd.prev('egresosNetos');
+    fy25Loans = ytd.sel('loans');
+    prevLoans = ytd.prev('loans');
+  } else {
+    fy25Rev = d.YT.ingresosNetos[li];
+    fy24Rev = d.YT.ingresosNetos[pi];
+    fy25Ebitda = d.YT.ebitdaOp[li];
+    prevEbitda = d.YT.ebitdaOp[pi];
+    fy25Costs = d.YT.egresosNetos[li];
+    prevCosts = d.YT.egresosNetos[pi];
+    fy25Loans = d.YT.loans[li];
+    prevLoans = d.YT.loans[pi];
+  }
+
   var revYoY = pct(fy25Rev, fy24Rev);
-
-  var fy25Ebitda = d.YT.ebitdaOp[li];
-  var ebitdaYoY = pct(fy25Ebitda, d.YT.ebitdaOp[pi]);
-
+  var ebitdaYoY = pct(fy25Ebitda, prevEbitda);
   var fy25Margin = fy25Rev ? (fy25Ebitda / fy25Rev * 100) : 0;
-  var fy24Margin = fy24Rev ? (d.YT.ebitdaOp[pi] / fy24Rev * 100) : 0;
+  var fy24Margin = fy24Rev ? (prevEbitda / fy24Rev * 100) : 0;
+  var costYoY = pct(fy25Costs, prevCosts);
+  var loansYoY = pct(fy25Loans, prevLoans);
 
-  var fy25Costs = d.YT.egresosNetos[li];
-  var costYoY = pct(fy25Costs, d.YT.egresosNetos[pi]);
-
-  var fy25Loans = d.YT.loans[li];
-  var loansYoY = pct(fy25Loans, d.YT.loans[pi]);
+  var labelSuffix = isYTD ? ' YTD ' + latestYear : ' ' + latestYear;
+  var periodLabel = isYTD ? 'vs YTD ' + prevYear : 'vs ' + prevYear;
 
   var kpis = [
-    { label: 'INGRESOS NETOS ' + latestYear, value: '$' + fmt(fy25Rev), change: revYoY, period: 'vs ' + prevYear, cls: revYoY < 0 ? 'negative' : 'positive' },
-    { label: 'EBITDA OPERACIONAL ' + latestYear, value: '$' + fmt(fy25Ebitda), change: ebitdaYoY, period: 'vs ' + prevYear, cls: 'neutral' },
-    { label: 'MARGEN EBITDA ' + latestYear, value: fy25Margin.toFixed(1) + '%', change: fy25Margin - fy24Margin, suffix: 'pp', period: 'vs ' + prevYear, cls: fy25Margin > fy24Margin ? 'positive' : 'negative' },
-    { label: 'EGRESOS NETOS ' + latestYear, value: '$' + fmt(fy25Costs), change: costYoY, period: 'vs ' + prevYear, cls: costYoY < 0 ? 'positive' : 'negative' },
-    { label: 'INGRESOS LOANS ' + latestYear, value: '$' + fmt(fy25Loans), change: loansYoY, period: 'vs ' + prevYear, cls: loansYoY > 0 ? 'positive' : 'negative' },
+    { label: 'INGRESOS NETOS' + labelSuffix, value: '$' + fmt(fy25Rev), change: revYoY, period: periodLabel, cls: revYoY < 0 ? 'negative' : 'positive' },
+    { label: 'EBITDA OPERACIONAL' + labelSuffix, value: '$' + fmt(fy25Ebitda), change: ebitdaYoY, period: periodLabel, cls: ebitdaYoY > 0 ? 'positive' : 'negative' },
+    { label: 'MARGEN EBITDA' + labelSuffix, value: fy25Margin.toFixed(1) + '%', change: fy25Margin - fy24Margin, suffix: 'pp', period: periodLabel, cls: fy25Margin > fy24Margin ? 'positive' : 'negative' },
+    { label: 'EGRESOS NETOS' + labelSuffix, value: '$' + fmt(fy25Costs), change: costYoY, period: periodLabel, cls: costYoY < 0 ? 'positive' : 'negative' },
+    { label: 'INGRESOS LOANS' + labelSuffix, value: '$' + fmt(fy25Loans), change: loansYoY, period: periodLabel, cls: loansYoY > 0 ? 'positive' : 'negative' },
   ];
 
   kpis.forEach(function(k, i) {
