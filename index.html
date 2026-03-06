@@ -806,7 +806,7 @@ function renderCharts(d) {
       labels: last24,
       datasets: [
         { label: 'Ingresos Netos', data: d.M.ingresosNetos.slice(s), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
-        { label: 'Egresos Netos', data: d.M.egresosNetos.slice(s), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.05)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'Egresos Netos', data: d.M.egresosNetos.slice(s).map(function(v) { return -v; }), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.05)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
         { label: 'EBITDA Op.', data: d.M.ebitdaOp.slice(s), borderColor: '#22c55e', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4, 4], tension: 0.3, pointRadius: 0, pointHitRadius: 10 }
       ]
     },
