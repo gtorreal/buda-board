@@ -609,7 +609,7 @@ function parseRRHH(rows) {
   var ci = [];
   var curYear = null;
   for (var c = 1; c < monthRow.length; c++) {
-    if (typeof yearRow[c] === 'number' && yearRow[c] >= 2020) curYear = yearRow[c];
+    var yv = yearRow[c]; if ((typeof yv === 'number' || typeof yv === 'string') && parseInt(yv) >= 2020) curYear = parseInt(yv);
     var m = monthRow[c];
     if (curYear && typeof m === 'number' && m >= 1 && m <= 12) {
       months.push(mo[m-1] + '-' + String(curYear).slice(2));
@@ -1196,6 +1196,11 @@ function filterByYear(months, selYear) {
     var my = m.split('-')[1];
     if (my === prevYY || my === yy) { indices.push(i); labels.push(m); }
   });
+  // Fallback: if no data matches selected year, show last 24 months
+  if (indices.length === 0 && months.length > 0) {
+    var start = Math.max(0, months.length - 24);
+    for (var i = start; i < months.length; i++) { indices.push(i); labels.push(months[i]); }
+  }
   return { indices: indices, labels: labels };
 }
 
