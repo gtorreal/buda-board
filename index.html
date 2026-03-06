@@ -821,18 +821,31 @@ function renderCharts(d, li) {
     callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + fmtFull(ctx.raw); } }
   };
 
-  var last24 = d.months.slice(-24);
-  var s = d.M.ingresosNetos.length - 24;
+  // Filter months for selected year + previous year
+  var selYear = d.years[li] || '2025';
+  var prevYear = String(parseInt(selYear) - 1);
+  var selYY = selYear.slice(2);
+  var prevYY = prevYear.slice(2);
+  var chartIndices = [];
+  var chartLabels = [];
+  d.months.forEach(function(m, i) {
+    var yy = m.split('-')[1];
+    if (yy === prevYY || yy === selYY) {
+      chartIndices.push(i);
+      chartLabels.push(m);
+    }
+  });
+  function pickMonths(arr) { return chartIndices.map(function(i) { return arr[i] || 0; }); }
 
   if (chart1) chart1.destroy();
   chart1 = new Chart(document.getElementById('revenueChart'), {
     type: 'line',
     data: {
-      labels: last24,
+      labels: chartLabels,
       datasets: [
-        { label: 'Ingresos Netos', data: d.M.ingresosNetos.slice(s), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
-        { label: 'Egresos Netos', data: d.M.egresosNetos.slice(s).map(function(v) { return -v; }), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.05)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
-        { label: 'EBITDA Op.', data: d.M.ebitdaOp.slice(s), borderColor: '#22c55e', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4, 4], tension: 0.3, pointRadius: 0, pointHitRadius: 10 }
+        { label: 'Ingresos Netos', data: pickMonths(d.M.ingresosNetos), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'Egresos Netos', data: pickMonths(d.M.egresosNetos).map(function(v) { return -v; }), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.05)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'EBITDA Op.', data: pickMonths(d.M.ebitdaOp), borderColor: '#22c55e', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4, 4], tension: 0.3, pointRadius: 0, pointHitRadius: 10 }
       ]
     },
     options: {
@@ -840,7 +853,7 @@ function renderCharts(d, li) {
       plugins: {
         legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
         tooltip: tooltipOpts,
-        title: { display: true, text: 'Ingresos vs Egresos vs EBITDA (ultimos 24 meses)', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } }
+        title: { display: true, text: 'Ingresos vs Egresos vs EBITDA (' + prevYear + ' - ' + selYear + ')', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } }
       },
       scales: {
         x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
