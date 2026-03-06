@@ -624,13 +624,23 @@ function prevYearIdx(d) {
   return Math.max(0, latestFullYearIdx(d) - 1);
 }
 
+function getAllYears() {
+  // Use union of all views' years to ensure none are missing
+  var yearSet = {};
+  Object.keys(DATA).forEach(function(k) {
+    if (DATA[k] && DATA[k].years) DATA[k].years.forEach(function(y) { yearSet[y] = true; });
+  });
+  return Object.keys(yearSet).sort();
+}
+
 function populateYearSelect(d) {
   var sel = document.getElementById('yearSelect');
   sel.replaceChildren();
-  var defaultIdx = latestFullYearIdx(d);
-  d.years.forEach(function(y, i) {
+  var allYears = getAllYears();
+  var defaultYear = d.years[latestFullYearIdx(d)];
+  allYears.forEach(function(y) {
     var opt = el('option', { value: y }, y);
-    if ((currentYear === null && i === defaultIdx) || currentYear === y) opt.selected = true;
+    if ((currentYear === null && y === defaultYear) || currentYear === y) opt.selected = true;
     sel.appendChild(opt);
   });
 }
