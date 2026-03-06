@@ -1232,11 +1232,71 @@ function createRangeToggle() {
   [{ v: '1y', l: '1Y' }, { v: '2y', l: '2Y' }, { v: '4y', l: '4Y' }, { v: 'all', l: 'All' }].forEach(function(opt) {
     var btn = el('button', { class: chartRange === opt.v ? 'active' : '' }, opt.l);
     btn.addEventListener('click', function() {
-      if (chartRange !== opt.v) { chartRange = opt.v; renderDashboard(); }
+      if (chartRange !== opt.v) { chartRange = opt.v; refreshCharts(); }
     });
     toggle.appendChild(btn);
   });
   return toggle;
+}
+
+function refreshCharts() {
+  var d = DATA[currentView];
+  if (!d) return;
+  var li = selectedYearIdx(d);
+  var selYear = d.years[li] || currentYear || '2025';
+
+  // Update EBITDA line chart
+  if (chart1) {
+    var f = filterMonthsByRange(d.months, selYear, chartRange);
+    chart1.data.labels = f.labels;
+    chart1.data.datasets[0].data = f.indices.map(function(i) { return d.M.ingresosNetos[i] || 0; });
+    chart1.data.datasets[1].data = f.indices.map(function(i) { return -(d.M.egresosNetos[i] || 0); });
+    chart1.data.datasets[2].data = f.indices.map(function(i) { return d.M.ebitdaOp[i] || 0; });
+    chart1.update();
+  }
+
+  // Update MAU chart
+  if (chartMAU && DATA.metrics) {
+    var md = DATA.metrics;
+    var fm = filterMonthsByRange(md.months, selYear, chartRange);
+    function pickM(arr) { return fm.indices.map(function(i) { return arr[i] || 0; }); }
+    chartMAU.data.labels = fm.labels;
+    chartMAU.data.datasets[0].data = pickM(md.mau.cl);
+    chartMAU.data.datasets[1].data = pickM(md.mau.co);
+    chartMAU.data.datasets[2].data = pickM(md.mau.pe);
+    chartMAU.data.datasets[3].data = pickM(md.mau.ar);
+    chartMAU.data.datasets[4].data = pickM(md.mtu.total);
+    chartMAU.update();
+  }
+
+  // Update Headcount chart
+  if (chartHC && DATA.rrhh) {
+    var rd = DATA.rrhh;
+    var fh = filterMonthsByRange(rd.months, selYear, chartRange);
+    function pickH(arr) { return fh.indices.map(function(i) { return arr[i] || 0; }); }
+    chartHC.data.labels = fh.labels;
+    chartHC.data.datasets[0].data = pickH(rd.chile);
+    chartHC.data.datasets[1].data = pickH(rd.colombia);
+    chartHC.data.datasets[2].data = pickH(rd.peru);
+    chartHC.update();
+  }
+
+  // Update Loans chart
+  if (chartLoans && DATA.loans) {
+    var ld = DATA.loans;
+    var fl = filterMonthsByRange(ld.months, selYear, chartRange);
+    function pickL(arr) { return fl.indices.map(function(i) { return arr[i] || 0; }); }
+    chartLoans.data.labels = fl.labels;
+    chartLoans.data.datasets[0].data = pickL(ld.volumen);
+    chartLoans.data.datasets[1].data = pickL(ld.ingresos);
+    chartLoans.update();
+  }
+
+  // Update all toggle button states
+  document.querySelectorAll('.chart-range-toggle button').forEach(function(btn) {
+    var map = { '1Y': '1y', '2Y': '2y', '4Y': '4y', 'All': 'all' };
+    btn.className = map[btn.textContent] === chartRange ? 'active' : '';
+  });
 }
 
 function latestMonthInYear(months, data, selYear) {
