@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buda Holdco SpA — Board Report</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #0a0c10;
+  --bg-card: #12151c;
+  --bg-card-hover: #181c26;
+  --bg-surface: #1a1e28;
+  --border: #222838;
+  --border-light: #2a3040;
+  --text-primary: #e8eaf0;
+  --text-secondary: #8890a4;
+  --text-muted: #555d74;
+  --accent: #3b82f6;
+  --green: #22c55e;
+  --green-dim: rgba(34, 197, 94, 0.12);
+  --red: #ef4444;
+  --red-dim: rgba(239, 68, 68, 0.12);
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+.header {
+  padding: 2rem 3rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--bg-deep);
+  z-index: 100;
+  backdrop-filter: blur(20px);
+}
+
+.header-left { display: flex; align-items: center; gap: 1.5rem; }
+
+.logo {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem; color: #fff;
+}
+
+.header-title h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.3px; }
+.header-title p { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+.header-controls { display: flex; align-items: center; gap: 0.75rem; }
+
+.period-toggle {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.period-toggle button {
+  padding: 0.5rem 1rem;
+  font-size: 0.78rem;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.period-toggle button.active { background: var(--accent); color: #fff; }
+.period-toggle button:hover:not(.active) { background: var(--bg-surface); color: var(--text-primary); }
+
+.view-select {
+  padding: 0.5rem 1rem;
+  font-size: 0.78rem;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238890a4' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.view-select:focus { outline: 1px solid var(--accent); }
+
+.main { padding: 2rem 3rem 4rem; max-width: 1600px; margin: 0 auto; }
+
+/* Loading */
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 2rem;
+  gap: 1.5rem;
+}
+
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text { color: var(--text-muted); font-size: 0.85rem; }
+
+/* KPI Cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, transform 0.2s;
+}
+
+.kpi-card:hover { border-color: var(--border-light); transform: translateY(-1px); }
+.kpi-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.kpi-card.positive::after { background: var(--green); }
+.kpi-card.negative::after { background: var(--red); }
+.kpi-card.neutral::after { background: var(--accent); }
+
+.kpi-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.kpi-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-meta { display: flex; align-items: center; gap: 0.5rem; }
+
+.kpi-change {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.kpi-change.up { color: var(--green); background: var(--green-dim); }
+.kpi-change.down { color: var(--red); background: var(--red-dim); }
+.kpi-period { font-size: 0.72rem; color: var(--text-muted); }
+
+/* Section Headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-title { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.2px; }
+.section-subtitle { font-size: 0.72rem; color: var(--text-muted); }
+
+/* Charts */
+.charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 2.5rem; }
+
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.chart-card canvas { width: 100% !important; height: 280px !important; }
+
+/* Entity Cards */
+.entity-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+
+.entity-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color 0.3s;
+}
+
+.entity-card:hover { border-color: var(--border-light); }
+.entity-name { font-size: 0.78rem; font-weight: 600; margin-bottom: 0.25rem; }
+.entity-sub { font-size: 0.68rem; color: var(--text-muted); margin-bottom: 1rem; }
+
+.entity-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+}
+
+.entity-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+.entity-row-label { font-size: 0.72rem; color: var(--text-secondary); }
+
+.entity-row-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* Table */
+.table-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 2.5rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+.table-scroll::-webkit-scrollbar { height: 6px; }
+.table-scroll::-webkit-scrollbar-track { background: transparent; }
+.table-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+table.ebitda { width: 100%; border-collapse: collapse; font-size: 0.78rem; white-space: nowrap; }
+
+table.ebitda th, table.ebitda td {
+  padding: 0.55rem 0.9rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+table.ebitda th {
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  z-index: 2;
+}
+
+table.ebitda th:first-child, table.ebitda td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--bg-card);
+  z-index: 3;
+  padding-left: 1.25rem;
+  min-width: 220px;
+  border-right: 1px solid var(--border);
+}
+
+table.ebitda th:first-child { background: var(--bg-surface); z-index: 4; }
+
+table.ebitda td {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+table.ebitda tr:hover td { background: var(--bg-card-hover); }
+table.ebitda tr:hover td:first-child { background: var(--bg-card-hover); }
+
+table.ebitda tr.row-header td { font-family: 'DM Sans', sans-serif; font-weight: 600; color: var(--text-primary); font-size: 0.8rem; }
+table.ebitda tr.row-header td:first-child { color: var(--accent); }
+
+table.ebitda tr.row-total td {
+  font-weight: 600;
+  color: var(--text-primary);
+  border-top: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+}
+
+table.ebitda tr.row-sub td:first-child {
+  padding-left: 2.5rem;
+  color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.74rem;
+}
+
+table.ebitda tr.row-subsub td:first-child {
+  padding-left: 3.5rem;
+  color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  font-style: italic;
+}
+
+table.ebitda tr.row-separator td { height: 0.5rem; padding: 0; border-bottom: none; }
+table.ebitda td.negative { color: var(--red); }
+table.ebitda td.positive { color: var(--green); }
+
+table.ebitda th.col-year {
+  background: var(--bg-card);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  border-left: 2px solid var(--border-light);
+  border-right: 2px solid var(--border-light);
+}
+
+table.ebitda td.col-year {
+  font-weight: 600;
+  color: var(--text-primary);
+  border-left: 2px solid var(--border);
+  border-right: 2px solid var(--border);
+  background: rgba(59, 130, 246, 0.03);
+}
+
+.footer {
+  text-align: center;
+  padding: 2rem 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.data-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.5rem;
+  padding: 2px 8px;
+  background: var(--green-dim);
+  color: var(--green);
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.data-source-dot {
+  width: 6px; height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in { animation: fadeUp 0.5s ease-out forwards; opacity: 0; }
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.1s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.2s; }
+.delay-5 { animation-delay: 0.25s; }
+.delay-6 { animation-delay: 0.35s; }
+.delay-7 { animation-delay: 0.45s; }
+
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .entity-grid { grid-template-columns: repeat(3, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .header { padding: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+  .main { padding: 1.5rem; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .entity-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="logo">B</div>
+    <div class="header-title">
+      <h1>Buda Holdco SpA</h1>
+      <p>Board Financial Report &mdash; Consolidated EBITDA
+        <span class="data-source"><span class="data-source-dot"></span>Live</span>
+      </p>
+    </div>
+  </div>
+  <div class="header-controls">
+    <select class="view-select" id="viewSelect">
+      <option value="consolidated">Consolidado</option>
+      <option value="chile">Buda SpA (Chile)</option>
+      <option value="peru">Buda SA (Peru)</option>
+      <option value="colombia">Buda SAS (Colombia)</option>
+    </select>
+    <div class="period-toggle" id="periodToggle">
+      <button data-period="monthly" class="active">Mensual</button>
+      <button data-period="quarterly">Trimestral</button>
+      <button data-period="annual">Anual</button>
+    </div>
+  </div>
+</header>
+
+<main class="main" id="mainContent">
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Cargando datos desde Google Sheets...</div>
+  </div>
+</main>
+
+<footer class="footer">
+  Buda Holdco SpA &mdash; Confidential &mdash; Generated <span id="genDate"></span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+// ═══ API CONFIG ═══
+const SPREADSHEET_ID = '1Rtjb2KtKderDNBoEddEWVGw21CejqF8uJThaabe3h1c';
+const API_KEY = 'AIzaSyAaN1BZyHWrFQCtRYLeL00v6A_FZdVq2fc';
+
+const SHEET_NAMES = {
+  consolidated: 'EBITDA_LIVE',
+  chile: 'EBITDA CHI_LIVE',
+  peru: 'EBITDA PEN_LIVE',
+  colombia: 'EBITDA COL_LIVE',
+};
+
+// Row indices (0-based from row 3, labels in col B, data starts col C = index 2)
+const R = {
+  headers: 0,          // Row 3: date serials / year numbers
+  ingresosNetos: 2,    // Row 5
+  comisiones: 3,       // Row 6
+  simple: 4,           // Row 7
+  trader: 5,           // Row 8
+  objetivos: 6,        // Row 9
+  loans: 7,            // Row 10
+  otc: 8,              // Row 11
+  otrosIngresos: 9,    // Row 12
+  egresosNetos: 14,    // Row 17
+  costosOp: 15,        // Row 18
+  remuneraciones: 16,  // Row 19
+  gastosAdmin: 34,     // Row 37
+  budaLoans: 53,       // Row 56
+  budaBridge: 54,      // Row 57
+  ebitdaOp: 56,        // Row 59
+  ebitdaPct: 57,       // Row 60
+};
+
+// ═══ STATE ═══
+let DATA = {};           // Parsed data per view
+let currentView = 'consolidated';
+let currentPeriod = 'monthly';
+
+// ═══ API ═══
+async function fetchSheet(sheetName) {
+  const range = encodeURIComponent(sheetName + '!A3:CB68');
+  const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + SPREADSHEET_ID +
+    '/values/' + range + '?key=' + API_KEY + '&valueRenderOption=UNFORMATTED_VALUE';
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('API error ' + res.status);
+  const json = await res.json();
+  return json.values || [];
+}
+
+// ═══ PARSE ═══
+function excelDateToLabel(serial) {
+  if (typeof serial !== 'number' || serial < 40000) return null;
+  const d = new Date((serial - 25569) * 86400000);
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[d.getUTCMonth()] + '-' + String(d.getUTCFullYear()).slice(2);
+}
+
+function parseSheet(rows) {
+  const hdr = rows[R.headers] || [];
+
+  // Identify monthly and yearly columns (data starts at index 2)
+  const monthCols = [];
+  const yearCols = [];
+  const monthLabels = [];
+  const yearLabels = [];
+
+  for (let c = 2; c < hdr.length; c++) {
+    const v = hdr[c];
+    if (typeof v === 'number' && v >= 40000) {
+      monthCols.push(c);
+      monthLabels.push(excelDateToLabel(v));
+    } else if (typeof v === 'number' && v >= 2020 && v <= 2030) {
+      yearCols.push(c);
+      yearLabels.push(String(v));
+    }
+  }
+
+  function getRow(idx) {
+    const row = rows[idx];
+    if (!row) return { m: monthCols.map(() => 0), y: yearCols.map(() => 0) };
+    return {
+      m: monthCols.map(c => { const v = row[c]; return typeof v === 'number' ? v : 0; }),
+      y: yearCols.map(c => { const v = row[c]; return typeof v === 'number' ? v : 0; }),
+    };
+  }
+
+  const fields = ['ingresosNetos','comisiones','simple','trader','objetivos','loans','otc',
+    'otrosIngresos','egresosNetos','costosOp','remuneraciones','gastosAdmin',
+    'budaLoans','budaBridge','ebitdaOp','ebitdaPct'];
+
+  const M = {}, YT = {};
+  for (const f of fields) {
+    const d = getRow(R[f]);
+    M[f] = d.m;
+    YT[f] = d.y;
+  }
+
+  return { months: monthLabels, years: yearLabels, M, YT };
+}
+
+// ═══ UTILS ═══
+function fmt(n) {
+  if (n == null || isNaN(n)) return '\u2014';
+  const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  return Math.round(n).toLocaleString('en-US');
+}
+
+function fmtFull(n) {
+  if (n == null || isNaN(n)) return '\u2014';
+  return Math.round(n).toLocaleString('en-US');
+}
+
+function fmtK(n) {
+  if (n == null || isNaN(n)) return '\u2014';
+  return (n / 1000).toFixed(0) + 'K';
+}
+
+function pct(curr, prev) {
+  if (!prev || prev === 0) return null;
+  return ((curr - prev) / Math.abs(prev)) * 100;
+}
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  if (attrs) Object.entries(attrs).forEach(function(kv) {
+    var k = kv[0], v = kv[1];
+    if (k === 'class') node.className = v;
+    else if (k === 'text') node.textContent = v;
+    else if (k === 'style') node.setAttribute('style', v);
+    else node.setAttribute(k, v);
+  });
+  if (children) {
+    if (typeof children === 'string') node.textContent = children;
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) node.appendChild(c); });
+    else node.appendChild(children);
+  }
+  return node;
+}
+
+// ═══ FIND LATEST YEAR INDEX ═══
+function latestFullYearIdx(d) {
+  // Find the latest year that has significant data
+  for (let i = d.YT.ingresosNetos.length - 1; i >= 0; i--) {
+    if (d.YT.ingresosNetos[i] > 100000) return i;
+  }
+  return d.YT.ingresosNetos.length - 1;
+}
+
+function prevYearIdx(d) {
+  return Math.max(0, latestFullYearIdx(d) - 1);
+}
+
+// ═══ RENDER ═══
+function renderDashboard() {
+  var d = DATA[currentView];
+  if (!d) return;
+
+  var main = document.getElementById('mainContent');
+  main.replaceChildren();
+
+  // KPI section
+  var kpiGrid = el('section', { class: 'kpi-grid', id: 'kpiGrid' });
+  main.appendChild(kpiGrid);
+  renderKPIs(d, kpiGrid);
+
+  // Entity breakdown (only for consolidated)
+  if (currentView === 'consolidated') {
+    var entWrap = el('div', { class: 'animate-in delay-5' });
+    var entHeader = el('div', { class: 'section-header' });
+    var entTitle = el('div');
+    var li = latestFullYearIdx(d);
+    var latestYear = d.years[li] || '2025';
+    entTitle.appendChild(el('div', { class: 'section-title' }, 'Breakdown por Entidad'));
+    entTitle.appendChild(el('div', { class: 'section-subtitle' }, 'Datos acumulados ' + latestYear + ' (USD)'));
+    entHeader.appendChild(entTitle);
+    entWrap.appendChild(entHeader);
+    var entGrid = el('section', { class: 'entity-grid', id: 'entityGrid' });
+    entWrap.appendChild(entGrid);
+    main.appendChild(entWrap);
+    renderEntities(d, entGrid, li);
+  }
+
+  // Charts
+  var chartWrap = el('div', { class: 'animate-in delay-6' });
+  var chartHeader = el('div', { class: 'section-header' });
+  var chartTitle = el('div');
+  chartTitle.appendChild(el('div', { class: 'section-title' }, 'Tendencias'));
+  chartTitle.appendChild(el('div', { class: 'section-subtitle' }, 'Ingresos, egresos y EBITDA en el tiempo (USD)'));
+  chartHeader.appendChild(chartTitle);
+  chartWrap.appendChild(chartHeader);
+  var chartsGrid = el('section', { class: 'charts-grid' });
+  var chartCard1 = el('div', { class: 'chart-card' });
+  var canvas1 = el('canvas', { id: 'revenueChart' });
+  chartCard1.appendChild(canvas1);
+  chartsGrid.appendChild(chartCard1);
+  var chartCard2 = el('div', { class: 'chart-card' });
+  var canvas2 = el('canvas', { id: 'revenueBreakdownChart' });
+  chartCard2.appendChild(canvas2);
+  chartsGrid.appendChild(chartCard2);
+  chartWrap.appendChild(chartsGrid);
+  main.appendChild(chartWrap);
+
+  // Table
+  var tableWrap = el('div', { class: 'animate-in delay-7' });
+  var tableHeader = el('div', { class: 'section-header' });
+  var tableTitle = el('div');
+  tableTitle.appendChild(el('div', { class: 'section-title' }, 'Estado de Resultados EBITDA'));
+  var viewLabel = currentView === 'consolidated' ? 'Consolidado' :
+    currentView === 'chile' ? 'Buda SpA (Chile)' :
+    currentView === 'peru' ? 'Buda SA (Peru)' : 'Buda SAS (Colombia)';
+  tableTitle.appendChild(el('div', { class: 'section-subtitle', id: 'tableSubtitle' }, viewLabel + ' \u2014 Todos los periodos en USD'));
+  tableHeader.appendChild(tableTitle);
+  tableWrap.appendChild(tableHeader);
+  var tw = el('div', { class: 'table-wrapper' });
+  var ts = el('div', { class: 'table-scroll' });
+  var tbl = el('table', { class: 'ebitda', id: 'ebitdaTable' });
+  ts.appendChild(tbl);
+  tw.appendChild(ts);
+  tableWrap.appendChild(tw);
+  main.appendChild(tableWrap);
+
+  renderCharts(d);
+  renderTable(d);
+}
+
+function renderKPIs(d, grid) {
+  var li = latestFullYearIdx(d);
+  var pi = Math.max(0, li - 1);
+  var latestYear = d.years[li] || '2025';
+  var prevYear = d.years[pi] || '2024';
+
+  var fy25Rev = d.YT.ingresosNetos[li];
+  var fy24Rev = d.YT.ingresosNetos[pi];
+  var revYoY = pct(fy25Rev, fy24Rev);
+
+  var fy25Ebitda = d.YT.ebitdaOp[li];
+  var ebitdaYoY = pct(fy25Ebitda, d.YT.ebitdaOp[pi]);
+
+  var fy25Margin = fy25Rev ? (fy25Ebitda / fy25Rev * 100) : 0;
+  var fy24Margin = fy24Rev ? (d.YT.ebitdaOp[pi] / fy24Rev * 100) : 0;
+
+  var fy25Costs = d.YT.egresosNetos[li];
+  var costYoY = pct(fy25Costs, d.YT.egresosNetos[pi]);
+
+  var fy25Loans = d.YT.loans[li];
+  var loansYoY = pct(fy25Loans, d.YT.loans[pi]);
+
+  var kpis = [
+    { label: 'INGRESOS NETOS ' + latestYear, value: '$' + fmt(fy25Rev), change: revYoY, period: 'vs ' + prevYear, cls: revYoY < 0 ? 'negative' : 'positive' },
+    { label: 'EBITDA OPERACIONAL ' + latestYear, value: '$' + fmt(fy25Ebitda), change: ebitdaYoY, period: 'vs ' + prevYear, cls: 'neutral' },
+    { label: 'MARGEN EBITDA ' + latestYear, value: fy25Margin.toFixed(1) + '%', change: fy25Margin - fy24Margin, suffix: 'pp', period: 'vs ' + prevYear, cls: fy25Margin > fy24Margin ? 'positive' : 'negative' },
+    { label: 'EGRESOS NETOS ' + latestYear, value: '$' + fmt(fy25Costs), change: costYoY, period: 'vs ' + prevYear, cls: costYoY < 0 ? 'positive' : 'negative' },
+    { label: 'INGRESOS LOANS ' + latestYear, value: '$' + fmt(fy25Loans), change: loansYoY, period: 'vs ' + prevYear, cls: loansYoY > 0 ? 'positive' : 'negative' },
+  ];
+
+  kpis.forEach(function(k, i) {
+    var card = el('div', { class: 'kpi-card ' + k.cls + ' animate-in delay-' + (i + 1) });
+    card.appendChild(el('div', { class: 'kpi-label' }, k.label));
+    card.appendChild(el('div', { class: 'kpi-value' }, k.value));
+
+    var meta = el('div', { class: 'kpi-meta' });
+    if (k.change != null) {
+      var dir = k.change > 0 ? 'up' : 'down';
+      var txt = (k.change > 0 ? '+' : '') + k.change.toFixed(1) + (k.suffix || '%');
+      meta.appendChild(el('span', { class: 'kpi-change ' + dir }, txt));
+    }
+    meta.appendChild(el('span', { class: 'kpi-period' }, k.period));
+    card.appendChild(meta);
+    grid.appendChild(card);
+  });
+}
+
+function renderEntities(d, grid, yearIdx) {
+  var entities = [
+    { name: 'Buda SpA', country: 'Chile', color: '#3b82f6', view: 'chile' },
+    { name: 'Buda SA', country: 'Peru', color: '#06b6d4', view: 'peru' },
+    { name: 'Buda SAS', country: 'Colombia', color: '#8b5cf6', view: 'colombia' },
+    { name: 'Buda Loans', country: 'Chile', color: '#f59e0b', view: null },
+    { name: 'Buda Bridge', country: 'Chile', color: '#ec4899', view: null },
+  ];
+
+  entities.forEach(function(e) {
+    var ingresos, ebitda;
+
+    if (e.view && DATA[e.view]) {
+      var ed = DATA[e.view];
+      var ei = Math.min(yearIdx, ed.YT.ingresosNetos.length - 1);
+      ingresos = ed.YT.ingresosNetos[ei];
+      ebitda = ed.YT.ebitdaOp[ei];
+    } else if (e.name === 'Buda Loans') {
+      ingresos = d.YT.loans[yearIdx];
+      ebitda = d.YT.budaLoans[yearIdx];
+    } else if (e.name === 'Buda Bridge') {
+      ingresos = d.YT.budaBridge[yearIdx];
+      ebitda = d.YT.budaBridge[yearIdx];
+    } else {
+      ingresos = 0; ebitda = 0;
+    }
+
+    var margin = ingresos ? (ebitda / ingresos * 100).toFixed(1) + '%' : '\u2014';
+
+    var card = el('div', { class: 'entity-card' });
+    card.appendChild(el('div', { class: 'entity-name', style: 'color:' + e.color }, e.name));
+    card.appendChild(el('div', { class: 'entity-sub' }, e.country));
+
+    var latestYear = d.years[yearIdx] || '2025';
+    var rows = [
+      ['Ingresos ' + latestYear, '$' + fmtFull(ingresos), ''],
+      ['EBITDA ' + latestYear, '$' + fmtFull(ebitda), ebitda >= 0 ? 'positive' : 'negative'],
+      ['Margen', margin, parseFloat(margin) >= 0 ? 'positive' : 'negative'],
+    ];
+
+    rows.forEach(function(r) {
+      var row = el('div', { class: 'entity-row' });
+      row.appendChild(el('span', { class: 'entity-row-label' }, r[0]));
+      row.appendChild(el('span', { class: 'entity-row-value ' + r[2] }, r[1]));
+      card.appendChild(row);
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+// ═══ CHARTS ═══
+var chart1 = null, chart2 = null;
+
+function renderCharts(d) {
+  var tooltipOpts = {
+    backgroundColor: '#1a1e28',
+    titleColor: '#e8eaf0',
+    bodyColor: '#8890a4',
+    borderColor: '#222838',
+    borderWidth: 1,
+    titleFont: { family: "'DM Sans'", weight: '600' },
+    bodyFont: { family: "'JetBrains Mono'", size: 11 },
+    padding: 12,
+    callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + fmtFull(ctx.raw); } }
+  };
+
+  var last24 = d.months.slice(-24);
+  var s = d.M.ingresosNetos.length - 24;
+
+  if (chart1) chart1.destroy();
+  chart1 = new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+      labels: last24,
+      datasets: [
+        { label: 'Ingresos Netos', data: d.M.ingresosNetos.slice(s), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'Egresos Netos', data: d.M.egresosNetos.slice(s), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.05)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
+        { label: 'EBITDA Op.', data: d.M.ebitdaOp.slice(s), borderColor: '#22c55e', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4, 4], tension: 0.3, pointRadius: 0, pointHitRadius: 10 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
+        tooltip: tooltipOpts,
+        title: { display: true, text: 'Ingresos vs Egresos vs EBITDA (ultimos 24 meses)', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 20 } }
+      },
+      scales: {
+        x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
+        y: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return '$' + fmtK(v); } }, grid: { color: 'rgba(34,40,56,0.5)' } }
+      }
+    }
+  });
+
+  var li = latestFullYearIdx(d);
+  if (chart2) chart2.destroy();
+  chart2 = new Chart(document.getElementById('revenueBreakdownChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Comisiones', 'Loans', 'OTC', 'Otros'],
+      datasets: [{
+        data: [d.YT.comisiones[li], d.YT.loans[li], d.YT.otc[li], d.YT.otrosIngresos[li]],
+        backgroundColor: ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'],
+        borderColor: '#12151c', borderWidth: 3, hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 12 } },
+        title: { display: true, text: 'Ingresos ' + (d.years[li] || '2025') + ' por Producto', color: '#e8eaf0', font: { family: "'DM Sans'", size: 13, weight: '600' }, padding: { bottom: 16 } },
+        tooltip: {
+          backgroundColor: '#1a1e28', titleColor: '#e8eaf0', bodyColor: '#8890a4',
+          borderColor: '#222838', borderWidth: 1, padding: 12,
+          titleFont: { family: "'DM Sans'", weight: '600' },
+          bodyFont: { family: "'JetBrains Mono'", size: 11 },
+          callbacks: {
+            label: function(ctx) {
+              var total = d.YT.ingresosNetos[li];
+              return ctx.label + ': $' + fmtFull(ctx.raw) + ' (' + (total ? ((ctx.raw / total) * 100).toFixed(1) : 0) + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ═══ TABLE ═══
+function sumQ(arr) {
+  var r = [];
+  var full = arr.slice();
+  while (full.length % 3 !== 0) full.push(0);
+  for (var i = 0; i < full.length; i += 3) {
+    r.push(full.slice(i, i + 3).reduce(function(a, b) { return a + (b || 0); }, 0));
+  }
+  return r;
+}
+
+function renderTable(d) {
+  var table = document.getElementById('ebitdaTable');
+  if (!table) return;
+  table.replaceChildren();
+
+  var headers, rows;
+
+  if (currentPeriod === 'annual') {
+    headers = d.years;
+    rows = [
+      { l: 'Ingresos Netos', v: d.YT.ingresosNetos, t: 'header' },
+      { l: 'Comisiones', v: d.YT.comisiones, t: 'sub' },
+      { l: 'Simple', v: d.YT.simple, t: 'subsub' },
+      { l: 'Trader', v: d.YT.trader, t: 'subsub' },
+      { l: 'Loans', v: d.YT.loans, t: 'sub' },
+      { l: 'OTC', v: d.YT.otc, t: 'sub' },
+      { l: 'Otros ingresos', v: d.YT.otrosIngresos, t: 'sub' },
+      { t: 'sep' },
+      { l: 'Egresos Netos', v: d.YT.egresosNetos, t: 'header' },
+      { l: 'Costos de operacion', v: d.YT.costosOp, t: 'sub' },
+      { l: 'Remuneraciones', v: d.YT.remuneraciones, t: 'subsub' },
+      { l: 'Gastos admin y ventas', v: d.YT.gastosAdmin, t: 'sub' },
+      { t: 'sep' },
+      { l: 'EBITDA Operacional', v: d.YT.ebitdaOp, t: 'total' },
+      { l: 'Margen EBITDA', v: d.YT.ingresosNetos.map(function(r, i) { return r ? (d.YT.ebitdaOp[i] / r * 100) : null; }), t: 'pct' },
+      { t: 'sep' },
+      { l: 'Buda Loans (gasto)', v: d.YT.budaLoans, t: 'sub' },
+      { l: 'Buda Bridge (gasto)', v: d.YT.budaBridge, t: 'sub' },
+    ];
+  } else if (currentPeriod === 'quarterly') {
+    var qh = [];
+    var startYear = parseInt(d.years[0]) || 2021;
+    var endYear = parseInt(d.years[d.years.length - 1]) || 2026;
+    for (var y = startYear; y <= endYear; y++) {
+      for (var q = 1; q <= 4; q++) {
+        // Only add quarters that have corresponding months
+        var qMonths = d.months.filter(function(m) {
+          var yr = '20' + m.split('-')[1];
+          var moIdx = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(m.split('-')[0]);
+          return parseInt(yr) === y && Math.floor(moIdx / 3) + 1 === q;
+        });
+        if (qMonths.length > 0) qh.push('Q' + q + ' ' + y);
+      }
+    }
+    headers = qh;
+    rows = [
+      { l: 'Ingresos Netos', v: sumQ(d.M.ingresosNetos), t: 'header' },
+      { l: 'Comisiones', v: sumQ(d.M.comisiones), t: 'sub' },
+      { l: 'Loans', v: sumQ(d.M.loans), t: 'sub' },
+      { l: 'OTC', v: sumQ(d.M.otc), t: 'sub' },
+      { t: 'sep' },
+      { l: 'Egresos Netos', v: sumQ(d.M.egresosNetos), t: 'header' },
+      { l: 'Costos de operacion', v: sumQ(d.M.costosOp), t: 'sub' },
+      { l: 'Gastos admin y ventas', v: sumQ(d.M.gastosAdmin), t: 'sub' },
+      { t: 'sep' },
+      { l: 'EBITDA Operacional', v: sumQ(d.M.ebitdaOp), t: 'total' },
+    ];
+  } else {
+    // Monthly: show last 14 months + latest year total
+    var li = latestFullYearIdx(d);
+    var latestYear = d.years[li] || '2025';
+    var si = Math.max(0, d.months.length - 14);
+    var monthHeaders = d.months.slice(si);
+    headers = monthHeaders.concat([latestYear]);
+    var sl = function(arr) { return arr.slice(si); };
+    var yi = monthHeaders.length; // index of the year column
+
+    rows = [
+      { l: 'Ingresos Netos', v: sl(d.M.ingresosNetos).concat([d.YT.ingresosNetos[li]]), t: 'header', yi: yi },
+      { l: 'Comisiones', v: sl(d.M.comisiones).concat([d.YT.comisiones[li]]), t: 'sub', yi: yi },
+      { l: 'Loans', v: sl(d.M.loans).concat([d.YT.loans[li]]), t: 'sub', yi: yi },
+      { l: 'OTC', v: sl(d.M.otc).concat([d.YT.otc[li]]), t: 'sub', yi: yi },
+      { t: 'sep' },
+      { l: 'Egresos Netos', v: sl(d.M.egresosNetos).concat([d.YT.egresosNetos[li]]), t: 'header', yi: yi },
+      { l: 'Costos de operacion', v: sl(d.M.costosOp).concat([d.YT.costosOp[li]]), t: 'sub', yi: yi },
+      { l: 'Gastos admin y ventas', v: sl(d.M.gastosAdmin).concat([d.YT.gastosAdmin[li]]), t: 'sub', yi: yi },
+      { t: 'sep' },
+      { l: 'EBITDA Operacional', v: sl(d.M.ebitdaOp).concat([d.YT.ebitdaOp[li]]), t: 'total', yi: yi },
+      {
+        l: 'Margen EBITDA',
+        v: sl(d.M.ingresosNetos).map(function(r, i) {
+          return r ? (sl(d.M.ebitdaOp)[i] / r * 100) : null;
+        }).concat([d.YT.ingresosNetos[li] ? (d.YT.ebitdaOp[li] / d.YT.ingresosNetos[li] * 100) : null]),
+        t: 'pct', yi: yi
+      },
+    ];
+  }
+
+  // Build thead
+  var thead = el('thead');
+  var hRow = el('tr');
+  hRow.appendChild(el('th', {}, ''));
+  headers.forEach(function(h, i) {
+    var isYr = (h.length === 4 && !h.startsWith('Q')) || (rows[0] && rows[0].yi !== undefined && i === rows[0].yi);
+    hRow.appendChild(el('th', { class: isYr ? 'col-year' : '' }, h));
+  });
+  thead.appendChild(hRow);
+  table.appendChild(thead);
+
+  // Build tbody
+  var tbody = el('tbody');
+  rows.forEach(function(row) {
+    if (row.t === 'sep') {
+      var tr = el('tr', { class: 'row-separator' });
+      tr.appendChild(el('td', { colspan: String(headers.length + 1) }));
+      tbody.appendChild(tr);
+      return;
+    }
+
+    var cls = row.t === 'header' ? 'row-header' : row.t === 'total' ? 'row-total' : row.t === 'sub' ? 'row-sub' : row.t === 'subsub' ? 'row-subsub' : '';
+    var tr = el('tr', { class: cls });
+    tr.appendChild(el('td', {}, row.l));
+
+    row.v.forEach(function(v, i) {
+      var isYr = (headers[i] && headers[i].length === 4 && !headers[i].startsWith('Q')) || (row.yi !== undefined && i === row.yi);
+      var cellCls = isYr ? 'col-year' : '';
+
+      if (row.t === 'pct') {
+        var txt = v != null ? v.toFixed(1) + '%' : '\u2014';
+        if (v > 0) cellCls += ' positive';
+        else if (v < 0) cellCls += ' negative';
+        tr.appendChild(el('td', { class: cellCls }, txt));
+      } else {
+        if ((row.t === 'total' || row.t === 'header') && v < 0) cellCls += ' negative';
+        else if (row.t === 'total' && v > 0) cellCls += ' positive';
+        tr.appendChild(el('td', { class: cellCls }, fmtFull(v)));
+      }
+    });
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+// ═══ EVENTS ═══
+document.getElementById('periodToggle').addEventListener('click', function(e) {
+  if (e.target.tagName !== 'BUTTON') return;
+  document.querySelectorAll('#periodToggle button').forEach(function(b) { b.classList.remove('active'); });
+  e.target.classList.add('active');
+  currentPeriod = e.target.dataset.period;
+  renderTable(DATA[currentView]);
+});
+
+document.getElementById('viewSelect').addEventListener('change', function(e) {
+  currentView = e.target.value;
+  renderDashboard();
+});
+
+document.getElementById('genDate').textContent = new Date().toLocaleDateString('es-CL', {
+  year: 'numeric', month: 'long', day: 'numeric'
+});
+
+// ═══ INIT: LOAD ALL SHEETS ═══
+(async function() {
+  try {
+    var sheets = await Promise.all([
+      fetchSheet(SHEET_NAMES.consolidated),
+      fetchSheet(SHEET_NAMES.chile),
+      fetchSheet(SHEET_NAMES.peru),
+      fetchSheet(SHEET_NAMES.colombia),
+    ]);
+
+    DATA.consolidated = parseSheet(sheets[0]);
+    DATA.chile = parseSheet(sheets[1]);
+    DATA.peru = parseSheet(sheets[2]);
+    DATA.colombia = parseSheet(sheets[3]);
+
+    renderDashboard();
+  } catch (err) {
+    var main = document.getElementById('mainContent');
+    main.replaceChildren();
+    var errDiv = el('div', { class: 'loading-overlay' });
+    errDiv.appendChild(el('div', { class: 'loading-text', style: 'color: var(--red)' }, 'Error cargando datos: ' + err.message));
+    errDiv.appendChild(el('div', { class: 'loading-text' }, 'Verifica que el documento este compartido publicamente.'));
+    main.appendChild(errDiv);
+  }
+})();
+</script>
+</body>
+</html>
