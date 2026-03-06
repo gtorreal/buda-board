@@ -1035,7 +1035,7 @@ function renderCharts(d, li) {
   chart2 = new Chart(document.getElementById('revenueBreakdownChart'), {
     type: 'doughnut',
     data: {
-      labels: ['Comisiones', 'Loans', 'OTC', 'Otros'],
+      labels: ['💱 Comisiones', '🏦 Loans', '🤝 OTC', '✨ Otros'],
       datasets: [{
         data: [d.YT.comisiones[li], d.YT.loans[li], d.YT.otc[li], d.YT.otrosIngresos[li]],
         backgroundColor: ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'],
