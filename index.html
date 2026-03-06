@@ -457,9 +457,90 @@ table.ebitda td.col-year {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .entity-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ═══ LOGIN ═══ */
+#loginOverlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: var(--bg-deep);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+#loginOverlay.hidden { display: none; }
+.login-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%; max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.login-card .login-logo {
+  text-align: center; margin-bottom: 1.5rem;
+}
+.login-card .login-logo img {
+  height: 32px; opacity: 0.9;
+}
+.login-card h2 {
+  color: var(--text-primary); font-size: 1.25rem; font-weight: 600;
+  text-align: center; margin-bottom: 0.5rem;
+}
+.login-card p.login-sub {
+  color: var(--text-secondary); font-size: 0.85rem;
+  text-align: center; margin-bottom: 1.5rem;
+}
+.login-field {
+  margin-bottom: 1rem;
+}
+.login-field label {
+  display: block; color: var(--text-secondary); font-size: 0.75rem;
+  font-weight: 500; margin-bottom: 0.4rem; text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.login-field input {
+  width: 100%; padding: 0.65rem 0.85rem;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+  outline: none; transition: border-color 0.2s;
+}
+.login-field input:focus {
+  border-color: var(--accent);
+}
+.login-btn {
+  width: 100%; padding: 0.7rem;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 8px; font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  margin-top: 0.5rem; transition: opacity 0.2s;
+}
+.login-btn:hover { opacity: 0.9; }
+.login-error {
+  color: var(--red); font-size: 0.8rem; text-align: center;
+  margin-top: 0.75rem; min-height: 1.2em;
+}
 </style>
 </head>
 <body>
+
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo"><img src="buda-logo.png" alt="Buda"></div>
+    <h2>Board Report</h2>
+    <p class="login-sub">Ingresa tus credenciales para continuar</p>
+    <form id="loginForm" autocomplete="off">
+      <div class="login-field">
+        <label>Email</label>
+        <input type="email" id="loginUser" placeholder="usuario@buda.com" required>
+      </div>
+      <div class="login-field">
+        <label>Contraseña</label>
+        <input type="password" id="loginPass" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="login-btn">Ingresar</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+  </div>
+</div>
 
 <header class="header">
   <div class="header-left">
@@ -492,6 +573,51 @@ table.ebitda td.col-year {
 <footer class="footer">
   Buda Holdco SpA &mdash; Confidential &mdash; Generated <span id="genDate"></span>
 </footer>
+
+<script>
+// ═══ LOGIN GATE ═══
+(function() {
+  var USERS = [
+    { u: '16066085ebdaa085a25f193777db4132468782f5c4ce4cd7170e9827acb78c3a', p: '39840f9241652fe55211676b57548ee03543e9a3a93394451afd7cfa0750f6cd' }
+  ];
+
+  function sha256(str) {
+    var buf = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', buf).then(function(hash) {
+      return Array.from(new Uint8Array(hash)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+
+  function checkSession() {
+    return sessionStorage.getItem('buda_authed') === 'true';
+  }
+
+  var overlay = document.getElementById('loginOverlay');
+  if (checkSession()) {
+    overlay.classList.add('hidden');
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var user = document.getElementById('loginUser').value.trim();
+    var pass = document.getElementById('loginPass').value;
+    var errEl = document.getElementById('loginError');
+    errEl.textContent = '';
+
+    Promise.all([sha256(user), sha256(pass)]).then(function(hashes) {
+      var uHash = hashes[0], pHash = hashes[1];
+      var valid = USERS.some(function(c) { return c.u === uHash && c.p === pHash; });
+      if (valid) {
+        sessionStorage.setItem('buda_authed', 'true');
+        overlay.classList.add('hidden');
+      } else {
+        errEl.textContent = 'Credenciales incorrectas';
+        document.getElementById('loginPass').value = '';
+      }
+    });
+  });
+})();
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
