@@ -1018,6 +1018,7 @@ function renderCharts(d, li) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: '#8890a4', font: { family: "'DM Sans'", size: 11 }, boxWidth: 12, padding: 16 } },
         tooltip: tooltipOpts,
