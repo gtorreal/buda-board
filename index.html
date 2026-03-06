@@ -433,6 +433,7 @@ table.ebitda td.col-year {
     </div>
   </div>
   <div class="header-controls">
+    <select class="view-select" id="yearSelect"></select>
     <select class="view-select" id="viewSelect">
       <option value="consolidated">Consolidado</option>
       <option value="chile">Buda SpA (Chile)</option>
@@ -496,6 +497,7 @@ const R = {
 let DATA = {};           // Parsed data per view
 let currentView = 'consolidated';
 let currentPeriod = 'monthly';
+let currentYear = null;  // null = latest year with data
 
 // ═══ API ═══
 async function fetchSheet(sheetName) {
@@ -608,8 +610,27 @@ function latestFullYearIdx(d) {
   return d.YT.ingresosNetos.length - 1;
 }
 
+function selectedYearIdx(d) {
+  if (currentYear !== null) {
+    var idx = d.years.indexOf(currentYear);
+    if (idx !== -1) return idx;
+  }
+  return latestFullYearIdx(d);
+}
+
 function prevYearIdx(d) {
   return Math.max(0, latestFullYearIdx(d) - 1);
+}
+
+function populateYearSelect(d) {
+  var sel = document.getElementById('yearSelect');
+  sel.replaceChildren();
+  var defaultIdx = latestFullYearIdx(d);
+  d.years.forEach(function(y, i) {
+    var opt = el('option', { value: y }, y);
+    if ((currentYear === null && i === defaultIdx) || currentYear === y) opt.selected = true;
+    sel.appendChild(opt);
+  });
 }
 
 // ═══ RENDER ═══
@@ -620,20 +641,22 @@ function renderDashboard() {
   var main = document.getElementById('mainContent');
   main.replaceChildren();
 
+  populateYearSelect(d);
+  var li = selectedYearIdx(d);
+
   // KPI section
   var kpiGrid = el('section', { class: 'kpi-grid', id: 'kpiGrid' });
   main.appendChild(kpiGrid);
-  renderKPIs(d, kpiGrid);
+  renderKPIs(d, kpiGrid, li);
 
   // Entity breakdown (only for consolidated)
   if (currentView === 'consolidated') {
     var entWrap = el('div', { class: 'animate-in delay-5' });
     var entHeader = el('div', { class: 'section-header' });
     var entTitle = el('div');
-    var li = latestFullYearIdx(d);
-    var latestYear = d.years[li] || '2025';
+    var selYear = d.years[li] || '2025';
     entTitle.appendChild(el('div', { class: 'section-title' }, 'Breakdown por Entidad'));
-    entTitle.appendChild(el('div', { class: 'section-subtitle' }, 'Datos acumulados ' + latestYear + ' (USD)'));
+    entTitle.appendChild(el('div', { class: 'section-subtitle' }, 'Datos acumulados ' + selYear + ' (USD)'));
     entHeader.appendChild(entTitle);
     entWrap.appendChild(entHeader);
     var entGrid = el('section', { class: 'entity-grid', id: 'entityGrid' });
@@ -681,12 +704,11 @@ function renderDashboard() {
   tableWrap.appendChild(tw);
   main.appendChild(tableWrap);
 
-  renderCharts(d);
-  renderTable(d);
+  renderCharts(d, li);
+  renderTable(d, li);
 }
 
-function renderKPIs(d, grid) {
-  var li = latestFullYearIdx(d);
+function renderKPIs(d, grid, li) {
   var pi = Math.max(0, li - 1);
   var latestYear = d.years[li] || '2025';
   var prevYear = d.years[pi] || '2024';
@@ -786,7 +808,7 @@ function renderEntities(d, grid, yearIdx) {
 // ═══ CHARTS ═══
 var chart1 = null, chart2 = null;
 
-function renderCharts(d) {
+function renderCharts(d, li) {
   var tooltipOpts = {
     backgroundColor: '#1a1e28',
     titleColor: '#e8eaf0',
@@ -827,7 +849,6 @@ function renderCharts(d) {
     }
   });
 
-  var li = latestFullYearIdx(d);
   if (chart2) chart2.destroy();
   chart2 = new Chart(document.getElementById('revenueBreakdownChart'), {
     type: 'doughnut',
@@ -872,7 +893,7 @@ function sumQ(arr) {
   return r;
 }
 
-function renderTable(d) {
+function renderTable(d, li) {
   var table = document.getElementById('ebitdaTable');
   if (!table) return;
   table.replaceChildren();
@@ -930,8 +951,7 @@ function renderTable(d) {
       { l: 'EBITDA Operacional', v: sumQ(d.M.ebitdaOp), t: 'total' },
     ];
   } else {
-    // Monthly: show last 14 months + latest year total
-    var li = latestFullYearIdx(d);
+    // Monthly: show last 14 months + selected year total
     var latestYear = d.years[li] || '2025';
     var si = Math.max(0, d.months.length - 14);
     var monthHeaders = d.months.slice(si);
@@ -1012,11 +1032,17 @@ document.getElementById('periodToggle').addEventListener('click', function(e) {
   document.querySelectorAll('#periodToggle button').forEach(function(b) { b.classList.remove('active'); });
   e.target.classList.add('active');
   currentPeriod = e.target.dataset.period;
-  renderTable(DATA[currentView]);
+  var d = DATA[currentView];
+  renderTable(d, selectedYearIdx(d));
 });
 
 document.getElementById('viewSelect').addEventListener('change', function(e) {
   currentView = e.target.value;
+  renderDashboard();
+});
+
+document.getElementById('yearSelect').addEventListener('change', function(e) {
+  currentYear = e.target.value;
   renderDashboard();
 });
 
