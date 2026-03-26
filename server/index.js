@@ -119,6 +119,13 @@ async function buildServer() {
     email: request.user.sub,
   }));
 
+  /** Public: lets the client skip Sheets fetches when .env is not set (local dev). */
+  app.get('/api/config', async () => ({
+    googleSheetsConfigured: Boolean(
+      String(SPREADSHEET_ID || '').trim() && String(GOOGLE_API_KEY || '').trim(),
+    ),
+  }));
+
   app.get('/api/sheets/values', { preHandler: requireAuth }, async (request, reply) => {
     const sheetName = request.query.sheetName || '';
     const customRange = request.query.range || 'A3:CZ80';

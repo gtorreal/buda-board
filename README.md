@@ -9,6 +9,8 @@ Board financiero (EBITDA live desde Google Sheets) y módulo **EEFF auditados** 
 
 Si solo usas **EEFF auditados**, no hace falta configurar Sheets; la pestaña EBITDA mostrará un aviso hasta que añadas `GOOGLE_SHEETS_*` en `.env`.
 
+**Importante:** `GOOGLE_SHEETS_*` se configura **una vez por servidor** (archivo `server/.env` o variables del hosting). **No** es un paso que repitas cada vez que inicias sesión: con el servidor ya configurado, **todos** los usuarios autorizados ven EBITDA Live igual.
+
 ## Arranque
 
 ```bash

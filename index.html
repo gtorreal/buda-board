@@ -1964,6 +1964,9 @@ function setBoardTab(tab) {
     tF.classList.remove('active');
     tE.setAttribute('aria-selected', 'true');
     tF.setAttribute('aria-selected', 'false');
+    if (window.budaGoogleSheetsConfigured === false && typeof renderEbitdaSheetsMissing === 'function') {
+      renderEbitdaSheetsMissing();
+    }
   }
 }
 
@@ -2292,7 +2295,7 @@ async function renderEeffDetail() {
     var prevDet = el('details', { class: 'eeff-text-preview' });
     prevDet.appendChild(el('summary', {}, 'Vista previa del texto extraído del PDF'));
     var prevPre = el('pre', { class: 'mono' });
-    prevPre.textContent = rawSample.length > 12000 ? rawSample.slice(0, 12000) + '\n…' : rawSample;
+    prevPre.textContent = rawSample.length > 16000 ? rawSample.slice(0, 16000) + '\n…' : rawSample;
     prevDet.appendChild(prevPre);
     detail.appendChild(prevDet);
   }
@@ -2459,9 +2462,58 @@ async function renderEeffDetail() {
 
 window.renderEeffPanel = renderEeffPanel;
 
+// ═══ EBITDA: sin Google Sheets (local) ═══
+function renderEbitdaSheetsMissing() {
+  var main = document.getElementById('mainContent');
+  main.replaceChildren();
+  var box = el('div', {
+    class: 'eeff-warnings',
+    style: 'max-width:720px;margin:0 auto;text-align:left',
+  });
+  box.appendChild(el('div', { style: 'font-weight:600;color:var(--text-primary);margin-bottom:0.5rem' }, 'EBITDA Live no disponible en este servidor'));
+  box.appendChild(el('div', { style: 'font-size:0.8rem;line-height:1.5;margin-bottom:0.65rem;color:var(--text-secondary)' },
+    'El acceso a EBITDA no es por usuario: quien administra el backend configura Google Sheets una sola vez. Después, cualquier persona con login usa el mismo EBITDA Live. Aquí el servidor aún no tiene esas credenciales.'));
+  box.appendChild(el('div', {}, 'Quien despliega o corre el servidor debe añadir en ' + 'server/.env' + ' (una vez; reiniciar ' + 'npm start' + '):'));
+  var pre = el('pre', {
+    class: 'mono',
+    style: 'font-size:0.72rem;background:var(--bg-surface);padding:0.75rem;border-radius:8px;border:1px solid var(--border);margin:0.65rem 0;white-space:pre-wrap',
+  });
+  pre.textContent =
+    'GOOGLE_SHEETS_SPREADSHEET_ID=tu_id_del_documento\n' +
+    'GOOGLE_SHEETS_API_KEY=tu_clave_de_API';
+  box.appendChild(pre);
+  var p2 = el('div', { style: 'font-size:0.78rem;color:var(--text-secondary);line-height:1.5' });
+  p2.innerHTML =
+    'ID: parte larga de la URL del spreadsheet. API: ' +
+    '<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent)">Google Cloud → Credenciales</a> ' +
+    '(Google Sheets API habilitada).';
+  box.appendChild(p2);
+  var row = el('div', { style: 'margin-top:0.85rem;display:flex;gap:0.5rem;flex-wrap:wrap' });
+  var btnGo = el('button', { type: 'button', class: 'eeff-btn' }, 'Ir a EEFF auditados');
+  btnGo.addEventListener('click', function() {
+    setBoardTab('eeff');
+  });
+  row.appendChild(btnGo);
+  box.appendChild(row);
+  main.appendChild(box);
+}
+
 // ═══ INIT: LOAD ALL SHEETS ═══
 async function loadEbitdaSheets() {
   try {
+    var cfgRes = await fetch('/api/config');
+    var cfg = await cfgRes.json().catch(function() {
+      return {};
+    });
+    if (!cfg.googleSheetsConfigured) {
+      window.budaGoogleSheetsConfigured = false;
+      window.budaEbitdaSheetsError = 'Google Sheets no configurado (usa EEFF o añade GOOGLE_SHEETS_* en server/.env).';
+      renderEbitdaSheetsMissing();
+      setBoardTab('eeff');
+      return;
+    }
+    window.budaGoogleSheetsConfigured = true;
+
     var sheets = await Promise.all([
       fetchSheet(SHEET_NAMES.consolidated),
       fetchSheet(SHEET_NAMES.chile),
