@@ -175,6 +175,9 @@ body::before {
   color: #fff;
 }
 .eeff-btn.secondary { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); }
+.eeff-btn.danger { color: #f87171; border-color: rgba(248,113,113,0.4); background: var(--red-dim); }
+.eeff-btn.danger:hover { color: #fff; border-color: var(--red); background: var(--red); }
+.eeff-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
 .eeff-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .eeff-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 .eeff-table th, .eeff-table td { padding: 0.5rem 0.65rem; text-align: left; border-bottom: 1px solid var(--border); }
@@ -1988,6 +1991,26 @@ async function eeffFetch(path, opts) {
   return res;
 }
 
+function eeffDeleteConfirmText() {
+  return 'Se eliminará el PDF del servidor y todos los datos asociados (partidas extraídas, ratios y análisis IA). Esta acción no se puede deshacer.\n\n¿Continuar?';
+}
+
+async function deleteEeffReport(reportId) {
+  if (!confirm(eeffDeleteConfirmText())) return;
+  try {
+    var res = await eeffFetch('/api/eeff/reports/' + encodeURIComponent(reportId), { method: 'DELETE' });
+    if (!res.ok) {
+      var j = await res.json().catch(function() { return {}; });
+      alert(j.error || 'No se pudo eliminar');
+      return;
+    }
+    if (eeffSelectedId === reportId) eeffSelectedId = null;
+    await renderEeffPanel();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
 function fmtEeffNum(n) {
   if (n == null || typeof n !== 'number' || Number.isNaN(n)) return '—';
   return n.toLocaleString('es-CL', { maximumFractionDigits: 0 });
@@ -2170,7 +2193,7 @@ async function renderEeffPanel() {
         el('th', {}, 'Año'),
         el('th', {}, 'Estado extracción'),
         el('th', {}, 'Archivo'),
-        el('th', {}, ''),
+        el('th', {}, 'Acciones'),
       ])));
       var tb = el('tbody');
       rows.forEach(function(r) {
@@ -2180,12 +2203,20 @@ async function renderEeffPanel() {
           eeffSelectedId = r.id;
           renderEeffDetail();
         });
+        var delBtn = el('button', { type: 'button', class: 'eeff-btn secondary danger' }, 'Eliminar');
+        delBtn.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          deleteEeffReport(r.id);
+        });
+        var actions = el('div', { class: 'eeff-actions' });
+        actions.appendChild(openBtn);
+        actions.appendChild(delBtn);
         tb.appendChild(el('tr', {}, [
           el('td', {}, r.entityLabel || r.entityId),
           el('td', { class: 'mono' }, String(r.fiscalYear)),
           el('td', {}, badge),
           el('td', {}, r.pdfFilename || '—'),
-          el('td', {}, openBtn),
+          el('td', {}, actions),
         ]));
       });
       tbl.appendChild(tb);
@@ -2229,15 +2260,12 @@ async function renderEeffDetail() {
   head.appendChild(el('div', {}, titleRow));
   head.appendChild(el('div', {}, [
     el('button', { type: 'button', class: 'eeff-btn secondary', id: 'eeffBtnAnalyze' }, 'Generar análisis IA'),
-    el('button', { type: 'button', class: 'eeff-btn secondary', style: 'margin-left:0.5rem', id: 'eeffBtnDel' }, 'Eliminar'),
+    el('button', { type: 'button', class: 'eeff-btn secondary danger', style: 'margin-left:0.5rem', id: 'eeffBtnDel' }, 'Eliminar documento'),
   ]));
   detail.appendChild(head);
 
-  document.getElementById('eeffBtnDel').addEventListener('click', async function() {
-    if (!confirm('¿Eliminar este reporte?')) return;
-    await eeffFetch('/api/eeff/reports/' + encodeURIComponent(rep.id), { method: 'DELETE' });
-    eeffSelectedId = null;
-    await renderEeffPanel();
+  document.getElementById('eeffBtnDel').addEventListener('click', function() {
+    deleteEeffReport(rep.id);
   });
 
   document.getElementById('eeffBtnAnalyze').addEventListener('click', async function() {

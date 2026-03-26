@@ -366,6 +366,7 @@ async function buildServer() {
     }
   });
 
+  /** Removes uploaded PDF from disk and the SQLite row (normalized, ratios, LLM analysis). */
   app.delete('/api/eeff/reports/:id', { preHandler: requireAuth }, async (request, reply) => {
     const row = db.prepare('SELECT * FROM eeff_reports WHERE id = ?').get(request.params.id);
     if (!row) return reply.code(404).send({ error: 'not_found' });
