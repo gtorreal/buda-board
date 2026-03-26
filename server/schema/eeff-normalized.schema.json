@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://buda.local/schema/eeff-normalized.json",
+  "title": "EEFFNormalized",
+  "type": "object",
+  "required": ["metadata", "balanceSheet", "incomeStatement", "extraction"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["entityId", "fiscalYear", "currency"],
+      "properties": {
+        "entityId": { "type": "string", "minLength": 1 },
+        "entityLabel": { "type": "string" },
+        "fiscalYear": { "type": "integer", "minimum": 1990, "maximum": 2100 },
+        "currency": { "type": "string", "default": "USD" },
+        "reportType": {
+          "type": "string",
+          "enum": ["consolidated", "chile", "peru", "colombia", "other"]
+        },
+        "auditVersion": { "type": "string" },
+        "sourcePdfId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "balanceSheet": {
+      "type": "object",
+      "properties": {
+        "totalAssets": { "type": ["number", "null"] },
+        "currentAssets": { "type": ["number", "null"] },
+        "nonCurrentAssets": { "type": ["number", "null"] },
+        "totalLiabilities": { "type": ["number", "null"] },
+        "currentLiabilities": { "type": ["number", "null"] },
+        "nonCurrentLiabilities": { "type": ["number", "null"] },
+        "equity": { "type": ["number", "null"] }
+      }
+    },
+    "incomeStatement": {
+      "type": "object",
+      "properties": {
+        "revenue": { "type": ["number", "null"] },
+        "costOfSales": { "type": ["number", "null"] },
+        "grossProfit": { "type": ["number", "null"] },
+        "operatingExpenses": { "type": ["number", "null"] },
+        "operatingIncome": { "type": ["number", "null"] },
+        "financialResult": { "type": ["number", "null"] },
+        "incomeTax": { "type": ["number", "null"] },
+        "netIncome": { "type": ["number", "null"] }
+      }
+    },
+    "cashFlow": {
+      "type": "object",
+      "properties": {
+        "operating": { "type": ["number", "null"] },
+        "investing": { "type": ["number", "null"] },
+        "financing": { "type": ["number", "null"] },
+        "netChangeInCash": { "type": ["number", "null"] }
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["ok", "partial", "failed"] },
+        "rawTextSample": { "type": "string" },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

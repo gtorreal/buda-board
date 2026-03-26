@@ -1,0 +1,5 @@
+data/
+server/node_modules/
+server/.env
+.env
+*.local.js
