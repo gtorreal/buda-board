@@ -143,6 +143,43 @@ body::before {
 .board-tab:hover { color: var(--text-primary); }
 .board-tab.active { background: var(--accent); color: #fff; }
 
+.sheet-data-panel-wrap { padding: 1.25rem 3rem 2rem; max-width: 1400px; margin: 0 auto; }
+.sheet-data-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; }
+.sheet-data-hint { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; line-height: 1.45; }
+.sheet-data-json {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  max-height: min(70vh, 820px);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.sheet-data-output { position: relative; }
+.sheet-data-table-host {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  max-height: min(70vh, 820px);
+  overflow: auto;
+}
+.sheet-data-table-wrap { margin-bottom: 1.25rem; }
+.sheet-data-table-wrap:last-child { margin-bottom: 0; }
+.sheet-data-table-caption {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+  font-family: inherit;
+}
+.sheet-data-table .mono { font-size: 0.7rem; }
+
 .panel-hidden { display: none !important; }
 
 .eeff-upload-grid {
@@ -787,6 +824,7 @@ table.ebitda td.col-year {
   </div>
   <div class="board-tabs" id="boardTabList" role="tablist">
     <button type="button" class="board-tab active" id="tabEbitda" role="tab" aria-selected="true">EBITDA Live</button>
+    <button type="button" class="board-tab" id="tabSheetData" role="tab" aria-selected="false">Datos planillas</button>
     <button type="button" class="board-tab" id="tabEeff" role="tab" aria-selected="false">EEFF auditados</button>
   </div>
 </header>
@@ -800,15 +838,19 @@ table.ebitda td.col-year {
       return;
     }
     var ebitda = document.getElementById('panelEbitda');
+    var sheetdata = document.getElementById('panelSheetData');
     var eeff = document.getElementById('panelEeff');
     var ctrls = document.getElementById('ebitdaControls');
     var tE = document.getElementById('tabEbitda');
+    var tS = document.getElementById('tabSheetData');
     var tF = document.getElementById('tabEeff');
     if (!ebitda || !eeff) return;
     ebitda.classList.add('panel-hidden');
+    if (sheetdata) sheetdata.classList.add('panel-hidden');
     eeff.classList.remove('panel-hidden');
     if (ctrls) ctrls.classList.add('panel-hidden');
     if (tE) { tE.classList.remove('active'); tE.setAttribute('aria-selected', 'false'); }
+    if (tS) { tS.classList.remove('active'); tS.setAttribute('aria-selected', 'false'); }
     if (tF) { tF.classList.add('active'); tF.setAttribute('aria-selected', 'true'); }
     var n = 0;
     function tryRender() {
@@ -837,16 +879,51 @@ table.ebitda td.col-year {
       return;
     }
     var ebitda = document.getElementById('panelEbitda');
+    var sheetdata = document.getElementById('panelSheetData');
     var eeff = document.getElementById('panelEeff');
     var ctrls = document.getElementById('ebitdaControls');
     var tE = document.getElementById('tabEbitda');
+    var tS = document.getElementById('tabSheetData');
     var tF = document.getElementById('tabEeff');
     if (!ebitda || !eeff) return;
     eeff.classList.add('panel-hidden');
+    if (sheetdata) sheetdata.classList.add('panel-hidden');
     ebitda.classList.remove('panel-hidden');
     if (ctrls) ctrls.classList.remove('panel-hidden');
     if (tF) { tF.classList.remove('active'); tF.setAttribute('aria-selected', 'false'); }
+    if (tS) { tS.classList.remove('active'); tS.setAttribute('aria-selected', 'false'); }
     if (tE) { tE.classList.add('active'); tE.setAttribute('aria-selected', 'true'); }
+  }
+  function goSheetData(ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (typeof window.setBoardTab === 'function') {
+      window.setBoardTab('sheetdata');
+      return;
+    }
+    var ebitda = document.getElementById('panelEbitda');
+    var sheetdata = document.getElementById('panelSheetData');
+    var eeff = document.getElementById('panelEeff');
+    var ctrls = document.getElementById('ebitdaControls');
+    var tE = document.getElementById('tabEbitda');
+    var tS = document.getElementById('tabSheetData');
+    var tF = document.getElementById('tabEeff');
+    if (!ebitda || !eeff) return;
+    ebitda.classList.add('panel-hidden');
+    eeff.classList.add('panel-hidden');
+    if (sheetdata) sheetdata.classList.remove('panel-hidden');
+    if (ctrls) ctrls.classList.add('panel-hidden');
+    if (tE) { tE.classList.remove('active'); tE.setAttribute('aria-selected', 'false'); }
+    if (tF) { tF.classList.remove('active'); tF.setAttribute('aria-selected', 'false'); }
+    if (tS) { tS.classList.add('active'); tS.setAttribute('aria-selected', 'true'); }
+    var n = 0;
+    function tryRender() {
+      if (typeof window.renderSheetDataPanel === 'function') {
+        window.renderSheetDataPanel();
+      } else if (n++ < 120) {
+        setTimeout(tryRender, 50);
+      }
+    }
+    tryRender();
   }
   function onTabPointer(ev) {
     var raw = ev.target;
@@ -855,6 +932,7 @@ table.ebitda td.col-year {
     var list = document.getElementById('boardTabList');
     if (!btn || !list || !list.contains(btn)) return;
     if (btn.id === 'tabEeff') goEeff(ev);
+    else if (btn.id === 'tabSheetData') goSheetData(ev);
     else if (btn.id === 'tabEbitda') goEbitda(ev);
   }
   var list = document.getElementById('boardTabList');
@@ -870,6 +948,16 @@ table.ebitda td.col-year {
     <div class="loading-spinner"></div>
     <div class="loading-text">Cargando datos desde Google Sheets...</div>
   </div>
+  </div>
+</main>
+
+<main class="main panel-hidden" id="panelSheetData">
+  <div class="sheet-data-panel-wrap">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:0.5rem;color:var(--text-primary)">Datos de planillas (Google Sheets)</h2>
+    <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:1rem;line-height:1.55;max-width:52rem">
+      Vista de depuración: estado del store, objetos <strong>parseados</strong> que alimentan EBITDA Live y matrices <strong>values</strong> crudas por hoja. Los datos existen en el navegador después de cargar EBITDA Live (o al volver a esta pestaña).
+    </p>
+    <div id="sheetDataRoot"></div>
   </div>
 </main>
 
@@ -967,282 +1055,31 @@ table.ebitda td.col-year {
 })();
 </script>
 
+<script src="ebitda-sheet-parse.js"></script>
+<script src="sheet-parsers.js"></script>
+<script src="sheet-data-store.js"></script>
 <script>
-// ═══ API CONFIG (Sheets vía proxy /api — sin API key en el cliente) ═══
-// Chart.js se carga al final del body para que este script (y loadEbitdaSheets) ejecute
-// aunque el CDN vaya lento o falle; si Chart va antes y el CDN cuelga, el spinner nunca termina.
-const SHEET_NAMES = {
-  consolidated: 'EBITDA_LIVE',
-  chile: 'EBITDA CHI_LIVE',
-  peru: 'EBITDA PEN_LIVE',
-  colombia: 'EBITDA COL_LIVE',
-};
+// ═══ BOARD (planillas vía BudaSheetDataStore → /api; sin API key en el cliente) ═══
+// Chart.js se carga al final del body para que loadEbitdaSheets ejecute aunque el CDN vaya lento.
 
-// Row indices (0-based from row 3, labels in col B, data starts col C = index 2)
-const R = {
-  headers: 0,          // Row 3: date serials / year numbers
-  ingresosNetos: 2,    // Row 5
-  comisiones: 3,       // Row 6
-  simple: 4,           // Row 7
-  trader: 5,           // Row 8
-  objetivos: 6,        // Row 9
-  loans: 7,            // Row 10
-  otc: 8,              // Row 11
-  otrosIngresos: 9,    // Row 12
-  egresosNetos: 14,    // Row 17
-  costosOp: 15,        // Row 18
-  remuneraciones: 16,  // Row 19
-  gastosAdmin: 34,     // Row 37
-  budaLoans: 53,       // Row 56
-  budaBridge: 54,      // Row 57
-  ebitdaOp: 56,        // Row 59
-  ebitdaPct: 57,       // Row 60
-};
+/** Parsed EBITDA/metrics/RRHH/loans: single source of truth from BudaSheetDataStore. */
+function sheetParsed() {
+  if (!window.BudaSheetDataStore) return {};
+  var st = window.BudaSheetDataStore.getState();
+  return st.parsed || {};
+}
 
 // ═══ STATE ═══
-let DATA = {};           // Parsed data per view
 let currentView = 'consolidated';
 let currentPeriod = 'monthly';
 let currentYear = null;  // null = latest year with data
 let expandedYear = null; // which year is expanded in the table
 let chartRange = '2y';   // '1y', '2y', '4y', 'all'
 
-// ═══ API ═══
-const SHEET_FETCH_TIMEOUT_MS = 35000;
-
 function budaSameOriginUrl(url) {
   if (!url || String(url).indexOf('http') === 0) return url;
   var o = window.location && window.location.origin;
   return o ? o + url : url;
-}
-
-async function fetchSheet(sheetName, customRange) {
-  const range = customRange || 'A3:CZ80';
-  const url = '/api/sheets/values?sheetName=' + encodeURIComponent(sheetName) + '&range=' + encodeURIComponent(range);
-  const ctrl = new AbortController();
-  const tid = setTimeout(function() { ctrl.abort(); }, SHEET_FETCH_TIMEOUT_MS);
-  let res;
-  try {
-    res = await fetch(budaSameOriginUrl(url), {
-      headers: window.budaAuthHeaders(),
-      signal: ctrl.signal,
-      cache: 'no-store',
-    });
-  } catch (e) {
-    clearTimeout(tid);
-    if (e && e.name === 'AbortError') {
-      throw new Error(
-        'Tiempo de espera al leer «' + sheetName + '». El servidor o Google no respondieron a tiempo; revisa .env, red o nombres de pestañas.',
-      );
-    }
-    throw e;
-  }
-  clearTimeout(tid);
-  if (res.status === 401) {
-    sessionStorage.removeItem('buda_token');
-    throw new Error('Sesión expirada; vuelve a iniciar sesión.');
-  }
-  if (res.status === 503) {
-    throw new Error('Google Sheets no configurado en el servidor (GOOGLE_SHEETS_* en .env).');
-  }
-  if (!res.ok) {
-    var msg = 'Error al leer Google Sheets (' + res.status + ')';
-    try {
-      var ej = await res.json();
-      if (ej.detail) msg += ': ' + String(ej.detail).slice(0, 280);
-      else if (ej.error) msg = String(ej.error) + (ej.message ? ' — ' + ej.message : '');
-    } catch (e2) { /* ignore */ }
-    throw new Error(msg + ' [hoja: ' + sheetName + ']');
-  }
-  const json = await res.json();
-  return json.values || [];
-}
-
-// ═══ PARSE ═══
-function excelDateToLabel(serial) {
-  if (typeof serial !== 'number' || serial < 40000) return null;
-  const d = new Date((serial - 25569) * 86400000);
-  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return mo[d.getUTCMonth()] + '-' + String(d.getUTCFullYear()).slice(2);
-}
-
-var METRICS_MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-/** METRICS_LIVE headers: YYYYMM (202602), text MMM-YY / MMM-YYYY, or Excel serial (>=40000). */
-function metricsHeaderToLabel(v) {
-  if (v == null || v === '') return null;
-  if (typeof v === 'number' && v >= 199001 && v <= 209912) {
-    var y = Math.floor(v / 100);
-    var m = v % 100;
-    if (m >= 1 && m <= 12 && y >= 1990 && y <= 2099) return METRICS_MO[m - 1] + '-' + String(y).slice(2);
-  }
-  if (typeof v === 'string') {
-    var s = String(v).trim();
-    var d6 = s.replace(/\D/g, '');
-    if (d6.length === 6) {
-      var n6 = parseInt(d6, 10);
-      if (n6 >= 199001 && n6 <= 209912) {
-        var y2 = Math.floor(n6 / 100);
-        var m2 = n6 % 100;
-        if (m2 >= 1 && m2 <= 12 && y2 >= 1990 && y2 <= 2099) return METRICS_MO[m2 - 1] + '-' + String(y2).slice(2);
-      }
-    }
-    var mm = s.match(/^([A-Za-z]{3})[\s\-\/]+(\d{2}|\d{4})$/i);
-    if (mm) {
-      var pref = mm[1].toLowerCase().replace(/\./g, '');
-      var mi = -1;
-      for (var t = 0; t < 12; t++) {
-        if (METRICS_MO[t].toLowerCase() === pref || METRICS_MO[t].toLowerCase().indexOf(pref) === 0) {
-          mi = t;
-          break;
-        }
-      }
-      if (mi >= 0) {
-        var yy = parseInt(mm[2], 10);
-        var yFull = yy < 100 ? (yy <= 50 ? 2000 + yy : 1900 + yy) : yy;
-        return METRICS_MO[mi] + '-' + String(yFull).slice(2);
-      }
-    }
-  }
-  if (typeof v === 'number' && v >= 40000) return excelDateToLabel(v);
-  return null;
-}
-
-function parseSheet(rows) {
-  const hdr = rows[R.headers] || [];
-
-  // Identify monthly and yearly columns (data starts at index 2)
-  const monthCols = [];
-  const yearCols = [];
-  const monthLabels = [];
-  const yearLabels = [];
-
-  for (let c = 2; c < hdr.length; c++) {
-    const v = hdr[c];
-    if (typeof v === 'number' && v >= 40000) {
-      monthCols.push(c);
-      monthLabels.push(excelDateToLabel(v));
-    } else if (typeof v === 'number' && v >= 2020 && v <= 2030) {
-      yearCols.push(c);
-      yearLabels.push(String(v));
-    }
-  }
-
-  function getRow(idx) {
-    const row = rows[idx];
-    if (!row) return { m: monthCols.map(() => 0), y: yearCols.map(() => 0) };
-    return {
-      m: monthCols.map(c => { const v = row[c]; return typeof v === 'number' ? v : 0; }),
-      y: yearCols.map(c => { const v = row[c]; return typeof v === 'number' ? v : 0; }),
-    };
-  }
-
-  const fields = ['ingresosNetos','comisiones','simple','trader','objetivos','loans','otc',
-    'otrosIngresos','egresosNetos','costosOp','remuneraciones','gastosAdmin',
-    'budaLoans','budaBridge','ebitdaOp','ebitdaPct'];
-
-  const M = {}, YT = {};
-  for (const f of fields) {
-    const d = getRow(R[f]);
-    M[f] = d.m;
-    YT[f] = d.y;
-  }
-
-  return { months: monthLabels, years: yearLabels, M, YT };
-}
-
-// ═══ PARSE: METRICS (METRICS_LIVE) ═══
-// Índices = fila Google Sheets − 1. MAU filas 32–36, MTU 41–45, TX 50–54 (AR/CL/CO/PE + Total).
-// Ancho: todas las filas devueltas (si solo la fila 31 tiene YYYYMM, antes se perdían columnas).
-// Encabezado: filas 1–40 (índices 0–39), antes de MTU (fila 41+) y sin mezclar con bloques de datos.
-var METRICS_HEADER_ROW_SCAN = 40;
-
-function parseMetrics(rows) {
-  var maxCol = 0;
-  for (var rr = 0; rr < rows.length; rr++) {
-    var rw = rows[rr] || [];
-    if (rw.length > maxCol) maxCol = rw.length;
-  }
-  var months = [];
-  var ci = []; // column indices (same as sheet column index in values array)
-  for (var c = 1; c < maxCol; c++) {
-    var label = null;
-    for (var ri = 0; ri < Math.min(METRICS_HEADER_ROW_SCAN, rows.length); ri++) {
-      label = metricsHeaderToLabel((rows[ri] || [])[c]);
-      if (label) break;
-    }
-    if (label) { months.push(label); ci.push(c); }
-  }
-  function metricsCellNum(row, col) {
-    var v = (row || [])[col];
-    if (typeof v === 'number' && !isNaN(v)) return v;
-    if (typeof v === 'string' && String(v).trim() !== '') {
-      var n = parseFloat(String(v).replace(/,/g, ''));
-      return isNaN(n) ? 0 : n;
-    }
-    return 0;
-  }
-  function vals(ri) {
-    var row = rows[ri] || [];
-    return ci.map(function(c) { return metricsCellNum(row, c); });
-  }
-  var mauAR = vals(31), mauCL = vals(32), mauCO = vals(33), mauPE = vals(34), mauTotal = vals(35);
-  var mtuAR = vals(40), mtuCL = vals(41), mtuCO = vals(42), mtuPE = vals(43), mtuTotal = vals(44);
-  var txAR = vals(49), txCL = vals(50), txCO = vals(51), txPE = vals(52), txTotal = vals(53);
-  return {
-    months: months,
-    mau: { ar: mauAR, cl: mauCL, co: mauCO, pe: mauPE, total: mauTotal },
-    mtu: { ar: mtuAR, cl: mtuCL, co: mtuCO, pe: mtuPE, total: mtuTotal },
-    tx: { ar: txAR, cl: txCL, co: txCO, pe: txPE, total: txTotal },
-  };
-}
-
-// ═══ PARSE: RRHH ═══
-function parseRRHH(rows) {
-  var yearRow = rows[1] || [];
-  var monthRow = rows[2] || [];
-  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var months = [];
-  var ci = [];
-  var curYear = null;
-  for (var c = 1; c < monthRow.length; c++) {
-    var yv = yearRow[c]; if ((typeof yv === 'number' || typeof yv === 'string') && parseInt(yv) >= 2020) curYear = parseInt(yv);
-    var m = monthRow[c];
-    if (curYear && typeof m === 'number' && m >= 1 && m <= 12) {
-      months.push(mo[m-1] + '-' + String(curYear).slice(2));
-      ci.push(c);
-    }
-  }
-  function vals(ri) {
-    var row = rows[ri] || [];
-    return ci.map(function(c) { return typeof row[c] === 'number' ? row[c] : 0; });
-  }
-  return { months: months, chile: vals(3), colombia: vals(4), peru: vals(5), total: vals(6) };
-}
-
-// ═══ PARSE: LOANS ═══
-function parseLoans(rows) {
-  var hdr = rows[9] || [];
-  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var months = [];
-  var ci = [];
-  for (var c = 1; c < hdr.length; c++) {
-    var v = hdr[c];
-    var vn = typeof v === 'number' && !isNaN(v) ? v : parseInt(String(v || '').replace(/\D/g, ''), 10);
-    if (vn >= 202001 && vn <= 209912) {
-      var y = Math.floor(vn / 100);
-      var m = (vn % 100) - 1;
-      if (m >= 0 && m <= 11) {
-        months.push(mo[m] + '-' + String(y).slice(2));
-        ci.push(c);
-      }
-    }
-  }
-  function vals(ri) {
-    var row = rows[ri] || [];
-    return ci.map(function(c) { return typeof row[c] === 'number' ? row[c] : 0; });
-  }
-  return { months: months, ingresos: vals(10), volumen: vals(11), tasa: vals(12), gastos: vals(13) };
 }
 
 // ═══ UTILS ═══
@@ -1310,8 +1147,10 @@ function prevYearIdx(d) {
 function getAllYears() {
   // Use union of all views' years to ensure none are missing
   var yearSet = {};
-  Object.keys(DATA).forEach(function(k) {
-    if (DATA[k] && DATA[k].years) DATA[k].years.forEach(function(y) { yearSet[y] = true; });
+  var pdAll = sheetParsed();
+  Object.keys(pdAll).forEach(function(k) {
+    var pd = pdAll[k];
+    if (pd && pd.years) pd.years.forEach(function(y) { yearSet[y] = true; });
   });
   return Object.keys(yearSet).sort();
 }
@@ -1332,7 +1171,7 @@ function populateYearSelect(d) {
 function renderDashboard() {
   var main = document.getElementById('mainContent');
   if (!main) return;
-  var d = DATA[currentView];
+  var d = sheetParsed()[currentView];
   if (!d) {
     main.replaceChildren();
     main.appendChild(el('div', {
@@ -1529,11 +1368,12 @@ function renderEntities(d, grid, yearIdx) {
     { name: 'Buda Bridge', country: 'Chile', color: '#ec4899', view: null },
   ];
 
+  var spEntities = sheetParsed();
   entities.forEach(function(e) {
     var ingresos, ebitda;
 
-    if (e.view && DATA[e.view]) {
-      var ed = DATA[e.view];
+    if (e.view && spEntities[e.view]) {
+      var ed = spEntities[e.view];
       var ei = Math.min(yearIdx, ed.YT.ingresosNetos.length - 1);
       ingresos = ed.YT.ingresosNetos[ei];
       ebitda = ed.YT.ebitdaOp[ei];
@@ -1623,10 +1463,10 @@ function renderCharts(d, li) {
   chart2 = new Chart(document.getElementById('revenueBreakdownChart'), {
     type: 'doughnut',
     data: {
-      labels: ['Comisiones', 'Loans', 'OTC', 'Otros'],
+      labels: ['Comisiones', 'Objetivos', 'Loans', 'OTC', 'Otros'],
       datasets: [{
-        data: [d.YT.comisiones[li], d.YT.loans[li], d.YT.otc[li], d.YT.otrosIngresos[li]],
-        backgroundColor: ['#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'],
+        data: [d.YT.comisiones[li], d.YT.objetivos[li], d.YT.loans[li], d.YT.otc[li], d.YT.otrosIngresos[li]],
+        backgroundColor: ['#3b82f6', '#eab308', '#f59e0b', '#8b5cf6', '#06b6d4'],
         borderColor: '#12151c', borderWidth: 3, hoverOffset: 8
       }]
     },
@@ -1697,6 +1537,7 @@ function renderTable(d, li) {
     { l: 'Comisiones', field: 'comisiones', t: 'sub' },
     { l: 'Simple', field: 'simple', t: 'subsub' },
     { l: 'Trader', field: 'trader', t: 'subsub' },
+    { l: 'Objetivos', field: 'objetivos', t: 'sub' },
     { l: 'Loans', field: 'loans', t: 'sub' },
     { l: 'OTC', field: 'otc', t: 'sub' },
     { l: 'Otros ingresos', field: 'otrosIngresos', t: 'sub' },
@@ -1705,6 +1546,7 @@ function renderTable(d, li) {
     { l: 'Costos de operacion', field: 'costosOp', t: 'sub' },
     { l: 'Remuneraciones', field: 'remuneraciones', t: 'subsub' },
     { l: 'Gastos admin y ventas', field: 'gastosAdmin', t: 'sub' },
+    { l: 'Otros egresos operativos', field: 'egresosOtros', t: 'sub' },
     { t: 'sep' },
     { l: 'EBITDA Operacional', field: 'ebitdaOp', t: 'total' },
     { l: 'Margen EBITDA', t: 'pct' },
@@ -1843,7 +1685,7 @@ function createRangeToggle() {
 }
 
 function refreshCharts() {
-  var d = DATA[currentView];
+  var d = sheetParsed()[currentView];
   if (!d) return;
 
   // Update EBITDA line chart
@@ -1857,8 +1699,8 @@ function refreshCharts() {
   }
 
   // Update MAU chart
-  if (chartMAU && DATA.metrics) {
-    var md = DATA.metrics;
+  if (chartMAU && sheetParsed().metrics) {
+    var md = sheetParsed().metrics;
     var fm = filterMonthsByTrailingRange(md.months, chartRange, [md.mau.cl, md.mau.co, md.mau.pe, md.mau.ar, md.mtu.total]);
     function pickM(arr) { return fm.indices.map(function(i) { return arr[i] || 0; }); }
     chartMAU.data.labels = fm.labels;
@@ -1871,8 +1713,8 @@ function refreshCharts() {
   }
 
   // Update Headcount chart
-  if (chartHC && DATA.rrhh) {
-    var rd = DATA.rrhh;
+  if (chartHC && sheetParsed().rrhh) {
+    var rd = sheetParsed().rrhh;
     var fh = filterMonthsByTrailingRange(rd.months, chartRange, [rd.chile, rd.colombia, rd.peru, rd.total]);
     function pickH(arr) { return fh.indices.map(function(i) { return arr[i] || 0; }); }
     chartHC.data.labels = fh.labels;
@@ -1883,8 +1725,8 @@ function refreshCharts() {
   }
 
   // Update Loans chart
-  if (chartLoans && DATA.loans) {
-    var ld = DATA.loans;
+  if (chartLoans && sheetParsed().loans) {
+    var ld = sheetParsed().loans;
     var fl = filterMonthsByTrailingRange(ld.months, chartRange, [ld.volumen, ld.ingresos, ld.gastos]);
     function pickL(arr) { return fl.indices.map(function(i) { return arr[i] || 0; }); }
     chartLoans.data.labels = fl.labels;
@@ -1921,7 +1763,7 @@ function sameMonthPrevYear(months, idx) {
 }
 
 function renderMetricsSection(main, selYear) {
-  var md = DATA.metrics;
+  var md = sheetParsed().metrics;
   if (!md) return;
 
   main.appendChild(el('hr', { class: 'section-divider' }));
@@ -2019,7 +1861,7 @@ function renderMetricsSection(main, selYear) {
 
 // ═══ RRHH SECTION ═══
 function renderRRHHSection(main, selYear) {
-  var rd = DATA.rrhh;
+  var rd = sheetParsed().rrhh;
   if (!rd) return;
 
   main.appendChild(el('hr', { class: 'section-divider' }));
@@ -2102,7 +1944,7 @@ function renderRRHHSection(main, selYear) {
 
 // ═══ LOANS SECTION ═══
 function renderLoansSection(main, selYear) {
-  var ld = DATA.loans;
+  var ld = sheetParsed().loans;
   if (!ld) return;
 
   main.appendChild(el('hr', { class: 'section-divider' }));
@@ -2217,19 +2059,39 @@ function renderLoansSection(main, selYear) {
 // ═══ BOARD TABS (clics también en script tras </header>; listeners duplicados no hacen falta) ═══
 function setBoardTab(tab) {
   var ebitda = document.getElementById('panelEbitda');
+  var sheetdata = document.getElementById('panelSheetData');
   var eeff = document.getElementById('panelEeff');
   var ctrls = document.getElementById('ebitdaControls');
   var tE = document.getElementById('tabEbitda');
+  var tS = document.getElementById('tabSheetData');
   var tF = document.getElementById('tabEeff');
   if (!ebitda || !eeff || !tE || !tF) return;
+
+  function tabDeactivateAll() {
+    if (tE) {
+      tE.classList.remove('active');
+      tE.setAttribute('aria-selected', 'false');
+    }
+    if (tS) {
+      tS.classList.remove('active');
+      tS.setAttribute('aria-selected', 'false');
+    }
+    if (tF) {
+      tF.classList.remove('active');
+      tF.setAttribute('aria-selected', 'false');
+    }
+  }
+
   if (tab === 'eeff') {
     ebitda.classList.add('panel-hidden');
+    if (sheetdata) sheetdata.classList.add('panel-hidden');
     eeff.classList.remove('panel-hidden');
     if (ctrls) ctrls.classList.add('panel-hidden');
-    tE.classList.remove('active');
-    tF.classList.add('active');
-    tE.setAttribute('aria-selected', 'false');
-    tF.setAttribute('aria-selected', 'true');
+    tabDeactivateAll();
+    if (tF) {
+      tF.classList.add('active');
+      tF.setAttribute('aria-selected', 'true');
+    }
     if (typeof renderEeffPanel === 'function') {
       renderEeffPanel().catch(function(err) {
         console.error(err);
@@ -2240,20 +2102,467 @@ function setBoardTab(tab) {
         }
       });
     }
-  } else {
-    ebitda.classList.remove('panel-hidden');
+  } else if (tab === 'sheetdata') {
+    ebitda.classList.add('panel-hidden');
     eeff.classList.add('panel-hidden');
+    if (sheetdata) sheetdata.classList.remove('panel-hidden');
+    if (ctrls) ctrls.classList.add('panel-hidden');
+    tabDeactivateAll();
+    if (tS) {
+      tS.classList.add('active');
+      tS.setAttribute('aria-selected', 'true');
+    }
+    if (typeof renderSheetDataPanel === 'function') renderSheetDataPanel();
+  } else {
+    eeff.classList.add('panel-hidden');
+    if (sheetdata) sheetdata.classList.add('panel-hidden');
+    ebitda.classList.remove('panel-hidden');
     if (ctrls) ctrls.classList.remove('panel-hidden');
+    tabDeactivateAll();
     tE.classList.add('active');
-    tF.classList.remove('active');
     tE.setAttribute('aria-selected', 'true');
-    tF.setAttribute('aria-selected', 'false');
     if (window.budaGoogleSheetsConfigured === false && typeof renderEbitdaSheetsMissing === 'function') {
       renderEbitdaSheetsMissing();
     }
   }
 }
 window.setBoardTab = setBoardTab;
+
+// ═══ PANEL: DATOS PLANILLAS (JSON + vista tabla) ═══
+var SHEET_DATA_EBITDA_ROW_ORDER = [
+  'ingresosNetos', 'comisiones', 'simple', 'trader', 'objetivos', 'loans', 'otc', 'otrosIngresos',
+  'egresosNetos', 'costosOp', 'remuneraciones', 'gastosAdmin', 'budaLoans', 'budaBridge',
+  'ebitdaOp', 'ebitdaPct', 'egresosOtros',
+];
+
+function sheetDataOrderedKeys(obj, preferred) {
+  var keys = Object.keys(obj || {});
+  var out = [];
+  for (var p = 0; p < preferred.length; p++) {
+    if (keys.indexOf(preferred[p]) >= 0) out.push(preferred[p]);
+  }
+  var rest = keys.filter(function(k) {
+    return out.indexOf(k) < 0;
+  }).sort();
+  return out.concat(rest);
+}
+
+function sheetDataCellDisplay(v) {
+  if (v == null || v === '') return '\u2014';
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : '\u2014';
+  return String(v);
+}
+
+function sheetDataMatrixTable(title, colLabels, rowSpecs) {
+  /* rowSpecs: [{ label, values: number[] }] values aligned with colLabels */
+  var wrap = el('div', { class: 'sheet-data-table-wrap' });
+  if (title) wrap.appendChild(el('div', { class: 'sheet-data-table-caption' }, title));
+  var table = el('table', { class: 'eeff-table sheet-data-table' });
+  var thead = el('thead');
+  var hr = el('tr');
+  hr.appendChild(el('th', {}, 'Serie'));
+  for (var c = 0; c < colLabels.length; c++) {
+    hr.appendChild(el('th', { class: 'mono' }, sheetDataCellDisplay(colLabels[c])));
+  }
+  thead.appendChild(hr);
+  table.appendChild(thead);
+  var tb = el('tbody');
+  for (var r = 0; r < rowSpecs.length; r++) {
+    var spec = rowSpecs[r];
+    var tr = el('tr');
+    tr.appendChild(el('th', { class: 'mono', style: 'white-space:nowrap' }, spec.label));
+    var vals = spec.values || [];
+    for (var j = 0; j < colLabels.length; j++) {
+      tr.appendChild(el('td', { class: 'mono' }, sheetDataCellDisplay(vals[j])));
+    }
+    tb.appendChild(tr);
+  }
+  table.appendChild(tb);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function sheetDataKeyValueTable(obj) {
+  var wrap = el('div', { class: 'sheet-data-table-wrap' });
+  wrap.appendChild(el('div', { class: 'sheet-data-table-caption' }, 'Resumen'));
+  var table = el('table', { class: 'eeff-table sheet-data-table' });
+  var tb = el('tbody');
+  var keys = Object.keys(obj || {}).sort();
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var val = obj[k];
+    if (val != null && typeof val === 'object') {
+      try {
+        val = JSON.stringify(val);
+      } catch (e) {
+        val = String(val);
+      }
+    }
+    var tr = el('tr');
+    tr.appendChild(el('th', {}, k));
+    tr.appendChild(el('td', { class: 'mono' }, val == null ? '' : String(val)));
+    tb.appendChild(tr);
+  }
+  table.appendChild(tb);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function sheetDataRawValuesTable(values, id) {
+  var wrap = el('div', { class: 'sheet-data-table-wrap' });
+  wrap.appendChild(
+    el('div', { class: 'sheet-data-table-caption' }, 'Crudo: ' + id + ' · ' + (values && values.length) + ' filas'),
+  );
+  var table = el('table', { class: 'eeff-table sheet-data-table' });
+  var tb = el('tbody');
+  var maxCols = 0;
+  var rows = values || [];
+  for (var i = 0; i < rows.length; i++) {
+    maxCols = Math.max(maxCols, (rows[i] || []).length);
+  }
+  for (var r = 0; r < rows.length; r++) {
+    var row = rows[r] || [];
+    var tr = el('tr');
+    for (var c = 0; c < maxCols; c++) {
+      tr.appendChild(el('td', { class: 'mono' }, sheetDataCellDisplay(row[c])));
+    }
+    tb.appendChild(tr);
+  }
+  table.appendChild(tb);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function sheetDataIsEbitdaParsed(o) {
+  return !!(o && o.M && o.YT && Array.isArray(o.months) && Array.isArray(o.years));
+}
+
+function sheetDataIsMetricsParsed(o) {
+  return !!(o && o.mau && o.mtu && o.tx && Array.isArray(o.months));
+}
+
+function sheetDataIsRrhhParsed(o) {
+  return !!(
+    o &&
+    Array.isArray(o.months) &&
+    Array.isArray(o.chile) &&
+    Array.isArray(o.colombia) &&
+    !o.M
+  );
+}
+
+function sheetDataIsLoansParsed(o) {
+  return !!(
+    o &&
+    Array.isArray(o.months) &&
+    Array.isArray(o.volumen) &&
+    Array.isArray(o.ingresos) &&
+    o.mau === undefined
+  );
+}
+
+function sheetDataParsedToFragment(pkey, po) {
+  var frag = document.createDocumentFragment();
+  if (sheetDataIsEbitdaParsed(po)) {
+    var mk = sheetDataOrderedKeys(po.M, SHEET_DATA_EBITDA_ROW_ORDER);
+    var mRows = mk.map(function(key) {
+      return { label: key, values: po.M[key] || [] };
+    });
+    frag.appendChild(sheetDataMatrixTable('EBITDA mensual (M) · ' + pkey, po.months, mRows));
+    var yk = sheetDataOrderedKeys(po.YT, SHEET_DATA_EBITDA_ROW_ORDER);
+    var yRows = yk.map(function(key) {
+      return { label: key, values: po.YT[key] || [] };
+    });
+    frag.appendChild(sheetDataMatrixTable('EBITDA anual (YT) · ' + pkey, po.years, yRows));
+    return frag;
+  }
+  if (sheetDataIsMetricsParsed(po)) {
+    var specs = [];
+    var cc = ['ar', 'cl', 'co', 'pe', 'total'];
+    for (var a = 0; a < cc.length; a++) {
+      specs.push({ label: 'MAU ' + String(cc[a]).toUpperCase(), values: po.mau[cc[a]] || [] });
+    }
+    for (var b = 0; b < cc.length; b++) {
+      specs.push({ label: 'MTU ' + String(cc[b]).toUpperCase(), values: po.mtu[cc[b]] || [] });
+    }
+    for (var d = 0; d < cc.length; d++) {
+      specs.push({ label: 'TX ' + String(cc[d]).toUpperCase(), values: po.tx[cc[d]] || [] });
+    }
+    frag.appendChild(sheetDataMatrixTable('Métricas de plataforma · ' + pkey, po.months, specs));
+    return frag;
+  }
+  if (sheetDataIsRrhhParsed(po)) {
+    frag.appendChild(
+      sheetDataMatrixTable('RRHH (headcount) · ' + pkey, po.months, [
+        { label: 'Chile', values: po.chile || [] },
+        { label: 'Colombia', values: po.colombia || [] },
+        { label: 'Peru', values: po.peru || [] },
+        { label: 'Total', values: po.total || [] },
+      ]),
+    );
+    return frag;
+  }
+  if (sheetDataIsLoansParsed(po)) {
+    frag.appendChild(
+      sheetDataMatrixTable('Loans · ' + pkey, po.months, [
+        { label: 'Ingresos', values: po.ingresos || [] },
+        { label: 'Volumen', values: po.volumen || [] },
+        { label: 'Tasa', values: po.tasa || [] },
+        { label: 'Gastos', values: po.gastos || [] },
+      ]),
+    );
+    return frag;
+  }
+  return null;
+}
+
+function sheetDataGetSelectionPayload(v, st) {
+  if (v === 'meta') {
+    return {
+      kind: 'meta',
+      obj: {
+        status: st.status,
+        error: st.error,
+        fetchedAt: st.fetchedAt,
+        googleSheetsConfigured: st.googleSheetsConfigured,
+        parsedKeys: Object.keys(st.parsed || {}),
+        rawKeys: Object.keys(st.raw || {}),
+      },
+    };
+  }
+  if (v.indexOf('parsed:') === 0) {
+    var pkey = v.slice(7);
+    var po = st.parsed && st.parsed[pkey];
+    if (po === undefined) {
+      return {
+        kind: 'empty',
+        message: 'Sin datos parseados para esta clave todavía.',
+        key: pkey,
+      };
+    }
+    return { kind: 'parsed', key: pkey, obj: po };
+  }
+  if (v.indexOf('raw:') === 0) {
+    var rid = v.slice(4);
+    var raw = st.raw && st.raw[rid];
+    if (raw === undefined) {
+      return { kind: 'empty', message: 'Sin filas crudas en memoria para este id.', id: rid };
+    }
+    return { kind: 'raw', id: rid, values: raw };
+  }
+  return { kind: 'meta', obj: st };
+}
+
+function sheetDataRenderTablesInto(host, payload) {
+  if (!host) return;
+  host.replaceChildren();
+  if (payload.kind === 'empty') {
+    host.appendChild(
+      el('p', { class: 'sheet-data-hint', style: 'color:var(--text-secondary)' }, payload.message || 'Sin datos.'),
+    );
+    return;
+  }
+  if (payload.kind === 'meta') {
+    host.appendChild(sheetDataKeyValueTable(payload.obj));
+    return;
+  }
+  if (payload.kind === 'raw') {
+    host.appendChild(sheetDataRawValuesTable(payload.values, payload.id));
+    return;
+  }
+  if (payload.kind === 'parsed') {
+    if (payload.obj && payload.obj._empty) {
+      host.appendChild(
+        el('p', { class: 'sheet-data-hint', style: 'color:var(--text-secondary)' },
+          payload.obj.message || 'Vacío'),
+      );
+      return;
+    }
+    var frag = sheetDataParsedToFragment(payload.key, payload.obj);
+    if (frag) host.appendChild(frag);
+    else {
+      host.appendChild(
+        el('p', { class: 'sheet-data-hint', style: 'color:var(--text-secondary)' },
+          'Vista tabla no disponible para esta estructura; usa JSON.'),
+      );
+    }
+  }
+}
+
+function sheetDataTablesToTsv(host) {
+  if (!host) return '';
+  var tables = host.querySelectorAll('table');
+  var parts = [];
+  for (var t = 0; t < tables.length; t++) {
+    var lines = [];
+    var trs = tables[t].querySelectorAll('tr');
+    for (var r = 0; r < trs.length; r++) {
+      var cells = trs[r].querySelectorAll('th, td');
+      var row = [];
+      for (var c = 0; c < cells.length; c++) {
+        var txt = (cells[c].textContent || '').replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
+        row.push(txt);
+      }
+      lines.push(row.join('\t'));
+    }
+    parts.push(lines.join('\n'));
+  }
+  return parts.join('\n\n');
+}
+
+function sheetDataCurrentJsonText(v, st) {
+  var pay = sheetDataGetSelectionPayload(v, st);
+  var obj;
+  if (pay.kind === 'meta') obj = pay.obj;
+  else if (pay.kind === 'parsed') obj = pay.obj;
+  else if (pay.kind === 'raw') {
+    obj = { id: pay.id, rowCount: pay.values.length, values: pay.values };
+  } else if (pay.kind === 'empty') {
+    obj = { _empty: true, message: pay.message, key: pay.key, id: pay.id };
+  } else obj = st;
+  try {
+    return JSON.stringify(obj, null, 2);
+  } catch (e) {
+    return String(e && e.message ? e.message : e);
+  }
+}
+
+function rebuildSheetDataSelectOptions(preserveValue) {
+  var sel = document.getElementById('sheetDataViewSelect');
+  if (!sel) return;
+  var store = window.BudaSheetDataStore;
+  var st = store && typeof store.getState === 'function' ? store.getState() : {};
+  var prev = preserveValue != null ? preserveValue : sel.value;
+  sel.replaceChildren();
+  function addOpt(value, label) {
+    sel.appendChild(el('option', { value: value }, label));
+  }
+  addOpt('meta', 'Resumen (estado)');
+  var pk = Object.keys(st.parsed || {}).sort();
+  for (var i = 0; i < pk.length; i++) {
+    addOpt('parsed:' + pk[i], 'Parseado: ' + pk[i]);
+  }
+  var sources = store && store.SHEET_SOURCES ? store.SHEET_SOURCES : [];
+  for (var j = 0; j < sources.length; j++) {
+    var s = sources[j];
+    addOpt('raw:' + s.id, 'Crudo: ' + s.sheetName);
+  }
+  if (prev && Array.prototype.some.call(sel.options, function(o) { return o.value === prev; })) {
+    sel.value = prev;
+  }
+}
+
+function refreshSheetDataView() {
+  var pre = document.getElementById('sheetDataJson');
+  var host = document.getElementById('sheetDataTableHost');
+  var hint = document.getElementById('sheetDataHint');
+  var sel = document.getElementById('sheetDataViewSelect');
+  var modeSel = document.getElementById('sheetDataDisplayMode');
+  var copyBtn = document.getElementById('sheetDataCopyBtn');
+  if (!pre || !host) return;
+  var store = window.BudaSheetDataStore;
+  var st = store && typeof store.getState === 'function' ? store.getState() : {};
+  var v = sel && sel.value ? sel.value : 'meta';
+  var mode = modeSel && modeSel.value === 'table' ? 'table' : 'json';
+
+  if (mode === 'json') {
+    pre.classList.remove('panel-hidden');
+    host.classList.add('panel-hidden');
+    if (copyBtn) copyBtn.textContent = 'Copiar JSON';
+    pre.textContent = sheetDataCurrentJsonText(v, st);
+  } else {
+    pre.classList.add('panel-hidden');
+    host.classList.remove('panel-hidden');
+    if (copyBtn) copyBtn.textContent = 'Copiar tabla (TSV)';
+    sheetDataRenderTablesInto(host, sheetDataGetSelectionPayload(v, st));
+  }
+
+  if (hint) {
+    if (st.fetchedAt) {
+      hint.textContent =
+        'Última carga en este navegador: ' +
+        new Date(st.fetchedAt).toLocaleString('es-CL') +
+        (mode === 'table' ? ' · Vista tabla: mismos datos que en JSON, en rejilla.' : '') +
+        '.';
+    } else if (st.status === 'loading') {
+      hint.textContent = 'Cargando hojas… vuelve en unos segundos o elige de nuevo en el selector.';
+    } else if (st.status === 'error' && st.error) {
+      hint.textContent = 'Estado error: ' + st.error;
+    } else {
+      hint.textContent =
+        'Sin datos en memoria aún. Abre «EBITDA Live» y espera a que termine la carga, o revisa la configuración de Google Sheets en el servidor.';
+    }
+  }
+}
+
+function renderSheetDataPanel() {
+  var root = document.getElementById('sheetDataRoot');
+  if (!root) return;
+  if (!root.querySelector('#sheetDataViewSelect')) {
+    root.replaceChildren();
+    var toolbar = el('div', { class: 'sheet-data-toolbar' });
+    var sel = el('select', { id: 'sheetDataViewSelect', class: 'view-select' });
+    sel.style.minWidth = '14rem';
+    toolbar.appendChild(sel);
+    var modeSel = el('select', { id: 'sheetDataDisplayMode', class: 'view-select' });
+    modeSel.style.minWidth = '10rem';
+    modeSel.appendChild(el('option', { value: 'json' }, 'Vista JSON'));
+    modeSel.appendChild(el('option', { value: 'table' }, 'Vista tabla'));
+    toolbar.appendChild(modeSel);
+    toolbar.appendChild(el('button', { type: 'button', class: 'eeff-btn secondary', id: 'sheetDataCopyBtn' }, 'Copiar JSON'));
+    toolbar.appendChild(el('button', { type: 'button', class: 'eeff-btn secondary', id: 'sheetDataRefreshBtn' }, 'Actualizar vista'));
+    root.appendChild(toolbar);
+    root.appendChild(el('div', { id: 'sheetDataHint', class: 'sheet-data-hint' }));
+    var out = el('div', { id: 'sheetDataOutput', class: 'sheet-data-output' });
+    out.appendChild(el('pre', { id: 'sheetDataJson', class: 'sheet-data-json mono' }));
+    out.appendChild(el('div', { id: 'sheetDataTableHost', class: 'sheet-data-table-host panel-hidden' }));
+    root.appendChild(out);
+    sel.addEventListener('change', function() {
+      refreshSheetDataView();
+    });
+    modeSel.addEventListener('change', function() {
+      refreshSheetDataView();
+    });
+    document.getElementById('sheetDataCopyBtn').addEventListener('click', function() {
+      var modeEl = document.getElementById('sheetDataDisplayMode');
+      var mode = modeEl && modeEl.value === 'table' ? 'table' : 'json';
+      var txt;
+      if (mode === 'table') {
+        var th = document.getElementById('sheetDataTableHost');
+        txt = sheetDataTablesToTsv(th);
+      } else {
+        var t = document.getElementById('sheetDataJson');
+        txt = t && t.textContent ? t.textContent : '';
+      }
+      if (!txt) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).catch(function() {
+          alert('No se pudo copiar al portapapeles.');
+        });
+      } else {
+        alert('Portapapeles no disponible en este navegador.');
+      }
+    });
+    document.getElementById('sheetDataRefreshBtn').addEventListener('click', function() {
+      rebuildSheetDataSelectOptions();
+      refreshSheetDataView();
+    });
+  }
+  rebuildSheetDataSelectOptions();
+  refreshSheetDataView();
+}
+window.renderSheetDataPanel = renderSheetDataPanel;
+
+(function subscribeSheetDataPanel() {
+  if (!window.BudaSheetDataStore || typeof window.BudaSheetDataStore.subscribe !== 'function') return;
+  window.BudaSheetDataStore.subscribe(function() {
+    var p = document.getElementById('panelSheetData');
+    if (!p || p.classList.contains('panel-hidden')) return;
+    var sel = document.getElementById('sheetDataViewSelect');
+    rebuildSheetDataSelectOptions(sel ? sel.value : null);
+    refreshSheetDataView();
+  });
+})();
 
 // ═══ EEFF PANEL ═══
 var eeffChartAssets = null;
@@ -3167,17 +3476,6 @@ function waitForChartLibrary(maxMs) {
   });
 }
 
-function fetchWithTimeout(url, options, ms) {
-  var ctrl = new AbortController();
-  var tid = setTimeout(function() { ctrl.abort(); }, ms);
-  return fetch(
-    budaSameOriginUrl(url),
-    Object.assign({}, options || {}, { signal: ctrl.signal, cache: 'no-store' }),
-  ).finally(function() {
-    clearTimeout(tid);
-  });
-}
-
 function setEbitdaLoadingHint(text) {
   var lt = document.querySelector('#loadingOverlay .loading-text');
   if (lt) lt.textContent = text;
@@ -3185,29 +3483,16 @@ function setEbitdaLoadingHint(text) {
 
 var budaEbitdaLoadPromise = null;
 
-// ═══ INIT: LOAD ALL SHEETS ═══
+// ═══ INIT: LOAD ALL SHEETS (BudaSheetDataStore es la fuente única) ═══
 async function loadEbitdaSheets() {
   if (budaEbitdaLoadPromise) return budaEbitdaLoadPromise;
   budaEbitdaLoadPromise = (async function() {
   try {
-    setEbitdaLoadingHint('Paso 1/4: leyendo configuración del servidor…');
-    var cfgRes;
-    try {
-      cfgRes = await fetchWithTimeout('/api/config', {}, 12000);
-    } catch (e) {
-      throw new Error(
-        e && e.name === 'AbortError'
-          ? 'El servidor no respondió a /api/config a tiempo. ¿Está corriendo npm start en buda-board/server?'
-          : 'No se pudo contactar al servidor: ' + (e && e.message ? e.message : String(e)),
-      );
+    if (!window.BudaSheetDataStore || typeof window.BudaSheetDataStore.load !== 'function') {
+      throw new Error('Faltan sheet-data-store.js / sheet-parsers.js (revisa el orden de los script src).');
     }
-    if (!cfgRes.ok) {
-      throw new Error('HTTP ' + cfgRes.status + ' al leer /api/config. ¿Servidor correcto en este puerto?');
-    }
-    var cfg = await cfgRes.json().catch(function() {
-      return {};
-    });
-    if (!cfg.googleSheetsConfigured) {
+    var result = await window.BudaSheetDataStore.load({ onHint: setEbitdaLoadingHint });
+    if (result && result.ok === false && result.reason === 'not_configured') {
       window.budaGoogleSheetsConfigured = false;
       window.budaEbitdaSheetsError = 'Google Sheets no configurado (usa EEFF o añade GOOGLE_SHEETS_* en server/.env).';
       renderEbitdaSheetsMissing();
@@ -3215,25 +3500,6 @@ async function loadEbitdaSheets() {
       return;
     }
     window.budaGoogleSheetsConfigured = true;
-
-    setEbitdaLoadingHint('Paso 2/4: descargando hojas desde Google (varias peticiones)…');
-    var sheets = await Promise.all([
-      fetchSheet(SHEET_NAMES.consolidated),
-      fetchSheet(SHEET_NAMES.chile),
-      fetchSheet(SHEET_NAMES.peru),
-      fetchSheet(SHEET_NAMES.colombia),
-      fetchSheet('METRICS_LIVE', 'A1:CZ100'),
-      fetchSheet('RRHH_LIVE', 'A25:CZ35'),
-      fetchSheet('LOANS_LIVE', 'A1:CZ20'),
-    ]);
-
-    DATA.consolidated = parseSheet(sheets[0]);
-    DATA.chile = parseSheet(sheets[1]);
-    DATA.peru = parseSheet(sheets[2]);
-    DATA.colombia = parseSheet(sheets[3]);
-    DATA.metrics = parseMetrics(sheets[4]);
-    DATA.rrhh = parseRRHH(sheets[5]);
-    DATA.loans = parseLoans(sheets[6]);
 
     setEbitdaLoadingHint('Paso 3/4: cargando librería de gráficos…');
     await waitForChartLibrary(25000);
