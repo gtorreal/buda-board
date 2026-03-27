@@ -1920,8 +1920,8 @@ function renderLoansSection(main, selYear) {
       },
       scales: {
         x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
-        y: { type: 'linear', position: 'left', ticks: { color: '#f59e0b', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return '$' + fmtK(v); } }, grid: { color: 'rgba(34,40,56,0.5)' } },
-        y1: { type: 'linear', position: 'right', ticks: { color: '#22c55e', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return '$' + fmtK(v); } }, grid: { drawOnChartArea: false } },
+        y: { type: 'linear', position: 'left', min: 0, ticks: { color: '#f59e0b', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return '$' + fmtK(v); } }, grid: { color: 'rgba(34,40,56,0.5)' } },
+        y1: { type: 'linear', position: 'right', min: 0, ticks: { color: '#22c55e', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return '$' + fmtK(v); } }, grid: { drawOnChartArea: false } },
       }
     }
   });
