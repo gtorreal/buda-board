@@ -246,8 +246,52 @@ body::before {
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid var(--border);
 }
-.eeff-mini-table td:first-child { color: var(--text-secondary); width: 58%; }
-.eeff-mini-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.eeff-mini-table td:first-child { color: var(--text-secondary); }
+.eeff-mini-table:not(.eeff-mini-wide) td:first-child { width: 58%; }
+.eeff-mini-table td.eeff-mono, .eeff-mini-table th.eeff-mono {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.eeff-mini-table:not(.eeff-mini-wide) td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.eeff-mini-table thead th {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+.eeff-delta { color: var(--text-secondary); font-size: 0.74rem; }
+.eeff-upload-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.eeff-upload-hint { font-size: 0.72rem; color: var(--text-muted); line-height: 1.45; margin-top: 0.5rem; }
+.eeff-detail-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin-top: 0.4rem;
+  max-width: 52rem;
+}
+.eeff-rec-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.15rem;
+  margin: 1.25rem 0;
+}
+.eeff-rec-section h5 { margin: 0 0 0.65rem; font-size: 0.88rem; color: var(--text-primary); }
+.eeff-warnings.eeff-sanity { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.22); }
+.eeff-yoy-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-bottom: 0.25rem; }
+.eeff-yoy-table th, .eeff-yoy-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; }
+.eeff-yoy-table th { color: var(--text-muted); font-weight: 500; font-size: 0.7rem; }
+.eeff-yoy-table td.eeff-mono { text-align: right; font-variant-numeric: tabular-nums; }
 .kpi-card .kpi-hint {
   font-size: 0.68rem;
   color: var(--text-muted);
@@ -588,6 +632,19 @@ table.ebitda td.col-year {
 }
 
 .animate-in { animation: fadeUp 0.5s ease-out forwards; opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    opacity: 1 !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+/* EEFF: sin opacity:0 inicial (evita panel “vacío” si la animación no corre) */
+.eeff-panel-content {
+  opacity: 1;
+  color: var(--text-primary);
+  min-height: 4rem;
+}
 .delay-1 { animation-delay: 0.05s; }
 .delay-2 { animation-delay: 0.1s; }
 .delay-3 { animation-delay: 0.15s; }
@@ -728,11 +785,84 @@ table.ebitda td.col-year {
       <option value="colombia">Buda SAS (Colombia)</option>
     </select>
   </div>
-  <div class="board-tabs" role="tablist">
+  <div class="board-tabs" id="boardTabList" role="tablist">
     <button type="button" class="board-tab active" id="tabEbitda" role="tab" aria-selected="true">EBITDA Live</button>
     <button type="button" class="board-tab" id="tabEeff" role="tab" aria-selected="false">EEFF auditados</button>
   </div>
 </header>
+<script>
+/* Pestañas: corre antes del script grande. Si el target del clic es un nodo de texto, el handler del script principal fallaba; además ctrls null rompía setBoardTab. */
+(function() {
+  function goEeff(ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (typeof window.setBoardTab === 'function') {
+      window.setBoardTab('eeff');
+      return;
+    }
+    var ebitda = document.getElementById('panelEbitda');
+    var eeff = document.getElementById('panelEeff');
+    var ctrls = document.getElementById('ebitdaControls');
+    var tE = document.getElementById('tabEbitda');
+    var tF = document.getElementById('tabEeff');
+    if (!ebitda || !eeff) return;
+    ebitda.classList.add('panel-hidden');
+    eeff.classList.remove('panel-hidden');
+    if (ctrls) ctrls.classList.add('panel-hidden');
+    if (tE) { tE.classList.remove('active'); tE.setAttribute('aria-selected', 'false'); }
+    if (tF) { tF.classList.add('active'); tF.setAttribute('aria-selected', 'true'); }
+    var n = 0;
+    function tryRender() {
+      if (typeof window.renderEeffPanel === 'function') {
+        window.renderEeffPanel().catch(function(err) {
+          console.error('EEFF:', err);
+          var r = document.getElementById('eeffRoot');
+          if (r) {
+            r.replaceChildren();
+            var p = document.createElement('p');
+            p.style.cssText = 'color:#ef4444;padding:1.25rem;font-size:0.9rem';
+            p.textContent = 'Error al cargar EEFF: ' + (err && err.message ? err.message : String(err));
+            r.appendChild(p);
+          }
+        });
+      } else if (n++ < 120) {
+        setTimeout(tryRender, 50);
+      }
+    }
+    tryRender();
+  }
+  function goEbitda(ev) {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (typeof window.setBoardTab === 'function') {
+      window.setBoardTab('ebitda');
+      return;
+    }
+    var ebitda = document.getElementById('panelEbitda');
+    var eeff = document.getElementById('panelEeff');
+    var ctrls = document.getElementById('ebitdaControls');
+    var tE = document.getElementById('tabEbitda');
+    var tF = document.getElementById('tabEeff');
+    if (!ebitda || !eeff) return;
+    eeff.classList.add('panel-hidden');
+    ebitda.classList.remove('panel-hidden');
+    if (ctrls) ctrls.classList.remove('panel-hidden');
+    if (tF) { tF.classList.remove('active'); tF.setAttribute('aria-selected', 'false'); }
+    if (tE) { tE.classList.add('active'); tE.setAttribute('aria-selected', 'true'); }
+  }
+  function onTabPointer(ev) {
+    var raw = ev.target;
+    var node = raw && raw.nodeType === 3 ? raw.parentElement : raw;
+    var btn = node && typeof node.closest === 'function' ? node.closest('button.board-tab') : null;
+    var list = document.getElementById('boardTabList');
+    if (!btn || !list || !list.contains(btn)) return;
+    if (btn.id === 'tabEeff') goEeff(ev);
+    else if (btn.id === 'tabEbitda') goEbitda(ev);
+  }
+  var list = document.getElementById('boardTabList');
+  if (list) {
+    list.addEventListener('click', onTabPointer, true);
+  }
+})();
+</script>
 
 <main class="main" id="panelEbitda">
   <div id="mainContent">
@@ -814,7 +944,20 @@ table.ebitda td.col-year {
         sessionStorage.setItem('buda_token', data.token);
         sessionStorage.setItem('buda_authed', 'true');
         hideOverlay();
-        if (typeof window.budaAfterLogin === 'function') window.budaAfterLogin();
+        if (typeof window.budaAfterLogin === 'function') {
+          window.budaAfterLogin();
+        } else if (typeof window.loadEbitdaSheets === 'function') {
+          window.loadEbitdaSheets();
+        } else {
+          var tries = 0;
+          (function waitForBoard() {
+            if (typeof window.loadEbitdaSheets === 'function') {
+              window.loadEbitdaSheets();
+              return;
+            }
+            if (tries++ < 80) setTimeout(waitForBoard, 50);
+          })();
+        }
       })
       .catch(function() {
         errEl.textContent =
@@ -824,9 +967,10 @@ table.ebitda td.col-year {
 })();
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 // ═══ API CONFIG (Sheets vía proxy /api — sin API key en el cliente) ═══
+// Chart.js se carga al final del body para que este script (y loadEbitdaSheets) ejecute
+// aunque el CDN vaya lento o falle; si Chart va antes y el CDN cuelga, el spinner nunca termina.
 const SHEET_NAMES = {
   consolidated: 'EBITDA_LIVE',
   chile: 'EBITDA CHI_LIVE',
@@ -864,10 +1008,36 @@ let expandedYear = null; // which year is expanded in the table
 let chartRange = '2y';   // '1y', '2y', '4y', 'all'
 
 // ═══ API ═══
+const SHEET_FETCH_TIMEOUT_MS = 35000;
+
+function budaSameOriginUrl(url) {
+  if (!url || String(url).indexOf('http') === 0) return url;
+  var o = window.location && window.location.origin;
+  return o ? o + url : url;
+}
+
 async function fetchSheet(sheetName, customRange) {
   const range = customRange || 'A3:CZ80';
   const url = '/api/sheets/values?sheetName=' + encodeURIComponent(sheetName) + '&range=' + encodeURIComponent(range);
-  const res = await fetch(url, { headers: window.budaAuthHeaders() });
+  const ctrl = new AbortController();
+  const tid = setTimeout(function() { ctrl.abort(); }, SHEET_FETCH_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(budaSameOriginUrl(url), {
+      headers: window.budaAuthHeaders(),
+      signal: ctrl.signal,
+      cache: 'no-store',
+    });
+  } catch (e) {
+    clearTimeout(tid);
+    if (e && e.name === 'AbortError') {
+      throw new Error(
+        'Tiempo de espera al leer «' + sheetName + '». El servidor o Google no respondieron a tiempo; revisa .env, red o nombres de pestañas.',
+      );
+    }
+    throw e;
+  }
+  clearTimeout(tid);
   if (res.status === 401) {
     sessionStorage.removeItem('buda_token');
     throw new Error('Sesión expirada; vuelve a iniciar sesión.');
@@ -875,7 +1045,15 @@ async function fetchSheet(sheetName, customRange) {
   if (res.status === 503) {
     throw new Error('Google Sheets no configurado en el servidor (GOOGLE_SHEETS_* en .env).');
   }
-  if (!res.ok) throw new Error('API error ' + res.status);
+  if (!res.ok) {
+    var msg = 'Error al leer Google Sheets (' + res.status + ')';
+    try {
+      var ej = await res.json();
+      if (ej.detail) msg += ': ' + String(ej.detail).slice(0, 280);
+      else if (ej.error) msg = String(ej.error) + (ej.message ? ' — ' + ej.message : '');
+    } catch (e2) { /* ignore */ }
+    throw new Error(msg + ' [hoja: ' + sheetName + ']');
+  }
   const json = await res.json();
   return json.values || [];
 }
@@ -886,6 +1064,48 @@ function excelDateToLabel(serial) {
   const d = new Date((serial - 25569) * 86400000);
   const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return mo[d.getUTCMonth()] + '-' + String(d.getUTCFullYear()).slice(2);
+}
+
+var METRICS_MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** METRICS_LIVE headers: YYYYMM (202602), text MMM-YY / MMM-YYYY, or Excel serial (>=40000). */
+function metricsHeaderToLabel(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' && v >= 199001 && v <= 209912) {
+    var y = Math.floor(v / 100);
+    var m = v % 100;
+    if (m >= 1 && m <= 12 && y >= 1990 && y <= 2099) return METRICS_MO[m - 1] + '-' + String(y).slice(2);
+  }
+  if (typeof v === 'string') {
+    var s = String(v).trim();
+    var d6 = s.replace(/\D/g, '');
+    if (d6.length === 6) {
+      var n6 = parseInt(d6, 10);
+      if (n6 >= 199001 && n6 <= 209912) {
+        var y2 = Math.floor(n6 / 100);
+        var m2 = n6 % 100;
+        if (m2 >= 1 && m2 <= 12 && y2 >= 1990 && y2 <= 2099) return METRICS_MO[m2 - 1] + '-' + String(y2).slice(2);
+      }
+    }
+    var mm = s.match(/^([A-Za-z]{3})[\s\-\/]+(\d{2}|\d{4})$/i);
+    if (mm) {
+      var pref = mm[1].toLowerCase().replace(/\./g, '');
+      var mi = -1;
+      for (var t = 0; t < 12; t++) {
+        if (METRICS_MO[t].toLowerCase() === pref || METRICS_MO[t].toLowerCase().indexOf(pref) === 0) {
+          mi = t;
+          break;
+        }
+      }
+      if (mi >= 0) {
+        var yy = parseInt(mm[2], 10);
+        var yFull = yy < 100 ? (yy <= 50 ? 2000 + yy : 1900 + yy) : yy;
+        return METRICS_MO[mi] + '-' + String(yFull).slice(2);
+      }
+    }
+  }
+  if (typeof v === 'number' && v >= 40000) return excelDateToLabel(v);
+  return null;
 }
 
 function parseSheet(rows) {
@@ -931,31 +1151,49 @@ function parseSheet(rows) {
   return { months: monthLabels, years: yearLabels, M, YT };
 }
 
-// ═══ PARSE: METRICS ═══
+// ═══ PARSE: METRICS (METRICS_LIVE) ═══
+// Índices = fila Google Sheets − 1. MAU filas 32–36, MTU 41–45, TX 50–54 (AR/CL/CO/PE + Total).
+// Ancho: todas las filas devueltas (si solo la fila 31 tiene YYYYMM, antes se perdían columnas).
+// Encabezado: filas 1–40 (índices 0–39), antes de MTU (fila 41+) y sin mezclar con bloques de datos.
+var METRICS_HEADER_ROW_SCAN = 40;
+
 function parseMetrics(rows) {
-  var dates = rows[1] || [];
+  var maxCol = 0;
+  for (var rr = 0; rr < rows.length; rr++) {
+    var rw = rows[rr] || [];
+    if (rw.length > maxCol) maxCol = rw.length;
+  }
   var months = [];
-  var ci = []; // column indices
-  for (var c = 1; c < dates.length; c++) {
-    var label = excelDateToLabel(dates[c]);
+  var ci = []; // column indices (same as sheet column index in values array)
+  for (var c = 1; c < maxCol; c++) {
+    var label = null;
+    for (var ri = 0; ri < Math.min(METRICS_HEADER_ROW_SCAN, rows.length); ri++) {
+      label = metricsHeaderToLabel((rows[ri] || [])[c]);
+      if (label) break;
+    }
     if (label) { months.push(label); ci.push(c); }
+  }
+  function metricsCellNum(row, col) {
+    var v = (row || [])[col];
+    if (typeof v === 'number' && !isNaN(v)) return v;
+    if (typeof v === 'string' && String(v).trim() !== '') {
+      var n = parseFloat(String(v).replace(/,/g, ''));
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
   }
   function vals(ri) {
     var row = rows[ri] || [];
-    return ci.map(function(c) { return typeof row[c] === 'number' ? row[c] : 0; });
+    return ci.map(function(c) { return metricsCellNum(row, c); });
   }
-  function sum4(a, b, c, d) {
-    return a.map(function(_, i) { return (a[i]||0)+(b[i]||0)+(c[i]||0)+(d[i]||0); });
-  }
-  var mauAR=vals(2), mauCL=vals(3), mauCO=vals(4), mauPE=vals(5);
-  // Row layout: section title (e.g. MTUs), then "filial", then AR/CL/CO/PE — not the filial row itself
-  var mtuAR=vals(11), mtuCL=vals(12), mtuCO=vals(13), mtuPE=vals(14);
-  var txAR=vals(20), txCL=vals(21), txCO=vals(22), txPE=vals(23);
+  var mauAR = vals(31), mauCL = vals(32), mauCO = vals(33), mauPE = vals(34), mauTotal = vals(35);
+  var mtuAR = vals(40), mtuCL = vals(41), mtuCO = vals(42), mtuPE = vals(43), mtuTotal = vals(44);
+  var txAR = vals(49), txCL = vals(50), txCO = vals(51), txPE = vals(52), txTotal = vals(53);
   return {
     months: months,
-    mau: { ar:mauAR, cl:mauCL, co:mauCO, pe:mauPE, total:sum4(mauAR,mauCL,mauCO,mauPE) },
-    mtu: { ar:mtuAR, cl:mtuCL, co:mtuCO, pe:mtuPE, total:sum4(mtuAR,mtuCL,mtuCO,mtuPE) },
-    tx:  { ar:txAR,  cl:txCL,  co:txCO,  pe:txPE,  total:sum4(txAR,txCL,txCO,txPE) },
+    mau: { ar: mauAR, cl: mauCL, co: mauCO, pe: mauPE, total: mauTotal },
+    mtu: { ar: mtuAR, cl: mtuCL, co: mtuCO, pe: mtuPE, total: mtuTotal },
+    tx: { ar: txAR, cl: txCL, co: txCO, pe: txPE, total: txTotal },
   };
 }
 
@@ -1049,11 +1287,12 @@ function el(tag, attrs, children) {
 
 // ═══ FIND LATEST YEAR INDEX ═══
 function latestFullYearIdx(d) {
-  // Find the latest year that has significant data
-  for (let i = d.YT.ingresosNetos.length - 1; i >= 0; i--) {
-    if (d.YT.ingresosNetos[i] > 100000) return i;
+  var yt = d.YT && d.YT.ingresosNetos;
+  if (!yt || yt.length === 0) return 0;
+  for (let i = yt.length - 1; i >= 0; i--) {
+    if (yt[i] > 100000) return i;
   }
-  return d.YT.ingresosNetos.length - 1;
+  return Math.max(0, yt.length - 1);
 }
 
 function selectedYearIdx(d) {
@@ -1091,10 +1330,21 @@ function populateYearSelect(d) {
 
 // ═══ RENDER ═══
 function renderDashboard() {
-  var d = DATA[currentView];
-  if (!d) return;
-
   var main = document.getElementById('mainContent');
+  if (!main) return;
+  var d = DATA[currentView];
+  if (!d) {
+    main.replaceChildren();
+    main.appendChild(el('div', {
+      class: 'loading-overlay',
+      style: 'align-items:flex-start;text-align:left;max-width:640px;margin:0 auto',
+    }, [
+      el('div', { class: 'loading-text', style: 'color:var(--red)' },
+        'No hay datos para esta vista (' + String(currentView) + '). Recarga la página o revisa la consola.'),
+    ]));
+    return;
+  }
+
   main.replaceChildren();
 
   populateYearSelect(d);
@@ -1339,7 +1589,7 @@ function renderCharts(d, li) {
 
   var selYear = d.years[li] || '2025';
   var prevYear = String(parseInt(selYear) - 1);
-  var f = filterMonthsByRange(d.months, selYear, chartRange);
+  var f = filterMonthsByTrailingRange(d.months, chartRange, [d.M.ingresosNetos, d.M.egresosNetos, d.M.ebitdaOp]);
   var chartLabels = f.labels;
   function pickMonths(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
@@ -1542,27 +1792,41 @@ function renderTable(d, li) {
 // ═══ METRICS SECTION ═══
 var chartMAU = null, chartHC = null, chartLoans = null;
 
-function filterMonthsByRange(months, selYear, range) {
-  if (range === 'all') {
-    var indices = [], labels = [];
-    months.forEach(function(m, i) { indices.push(i); labels.push(m); });
-    return { indices: indices, labels: labels };
+/** Last column index where at least one series has a non-zero value (ignores empty trailing sheet columns). */
+function lastMonthIndexWithData(months, seriesArrays) {
+  if (!months || months.length === 0) return -1;
+  for (var i = months.length - 1; i >= 0; i--) {
+    for (var s = 0; s < seriesArrays.length; s++) {
+      var arr = seriesArrays[s];
+      if (!arr || i >= arr.length) continue;
+      var v = arr[i];
+      if (v == null || v === '') continue;
+      var n = Number(v);
+      if (!isNaN(n) && n !== 0) return i;
+    }
   }
-  var numYears = range === '1y' ? 1 : range === '2y' ? 2 : 4;
-  var endY = parseInt(selYear);
-  var startY = endY - numYears + 1;
-  var suffixes = [];
-  for (var y = startY; y <= endY; y++) suffixes.push(String(y).slice(2));
+  return months.length - 1;
+}
 
-  var indices = [], labels = [];
-  months.forEach(function(m, i) {
-    if (suffixes.indexOf(m.split('-')[1]) !== -1) { indices.push(i); labels.push(m); }
-  });
-  // Fallback: show last N*12 months if no data for selected years
-  if (indices.length === 0 && months.length > 0) {
-    var start = Math.max(0, months.length - numYears * 12);
-    for (var i = start; i < months.length; i++) { indices.push(i); labels.push(months[i]); }
+/**
+ * X-axis ends at the last month with data; range buttons go backward over actual sheet months only (no empty calendar padding).
+ * 1Y / 2Y / 4Y = up to 12 / 24 / 48 data points ending at that month; fewer if the sheet is shorter.
+ * All = from first month through that last data month.
+ */
+function filterMonthsByTrailingRange(months, range, seriesArrays) {
+  if (!months || months.length === 0) return { indices: [], labels: [] };
+  var endIdx = lastMonthIndexWithData(months, seriesArrays);
+  if (endIdx < 0) endIdx = months.length - 1;
+
+  if (range === 'all') {
+    var indicesAll = [], labelsAll = [];
+    for (var a = 0; a <= endIdx; a++) { indicesAll.push(a); labelsAll.push(months[a]); }
+    return { indices: indicesAll, labels: labelsAll };
   }
+  var cap = range === '1y' ? 12 : range === '2y' ? 24 : 48;
+  var startIdx = Math.max(0, endIdx - cap + 1);
+  var indices = [], labels = [];
+  for (var j = startIdx; j <= endIdx; j++) { indices.push(j); labels.push(months[j]); }
   return { indices: indices, labels: labels };
 }
 
@@ -1581,12 +1845,10 @@ function createRangeToggle() {
 function refreshCharts() {
   var d = DATA[currentView];
   if (!d) return;
-  var li = selectedYearIdx(d);
-  var selYear = d.years[li] || currentYear || '2025';
 
   // Update EBITDA line chart
   if (chart1) {
-    var f = filterMonthsByRange(d.months, selYear, chartRange);
+    var f = filterMonthsByTrailingRange(d.months, chartRange, [d.M.ingresosNetos, d.M.egresosNetos, d.M.ebitdaOp]);
     chart1.data.labels = f.labels;
     chart1.data.datasets[0].data = f.indices.map(function(i) { return d.M.ingresosNetos[i] || 0; });
     chart1.data.datasets[1].data = f.indices.map(function(i) { return -(d.M.egresosNetos[i] || 0); });
@@ -1597,7 +1859,7 @@ function refreshCharts() {
   // Update MAU chart
   if (chartMAU && DATA.metrics) {
     var md = DATA.metrics;
-    var fm = filterMonthsByRange(md.months, selYear, chartRange);
+    var fm = filterMonthsByTrailingRange(md.months, chartRange, [md.mau.cl, md.mau.co, md.mau.pe, md.mau.ar, md.mtu.total]);
     function pickM(arr) { return fm.indices.map(function(i) { return arr[i] || 0; }); }
     chartMAU.data.labels = fm.labels;
     chartMAU.data.datasets[0].data = pickM(md.mau.cl);
@@ -1611,7 +1873,7 @@ function refreshCharts() {
   // Update Headcount chart
   if (chartHC && DATA.rrhh) {
     var rd = DATA.rrhh;
-    var fh = filterMonthsByRange(rd.months, selYear, chartRange);
+    var fh = filterMonthsByTrailingRange(rd.months, chartRange, [rd.chile, rd.colombia, rd.peru, rd.total]);
     function pickH(arr) { return fh.indices.map(function(i) { return arr[i] || 0; }); }
     chartHC.data.labels = fh.labels;
     chartHC.data.datasets[0].data = pickH(rd.chile);
@@ -1623,7 +1885,7 @@ function refreshCharts() {
   // Update Loans chart
   if (chartLoans && DATA.loans) {
     var ld = DATA.loans;
-    var fl = filterMonthsByRange(ld.months, selYear, chartRange);
+    var fl = filterMonthsByTrailingRange(ld.months, chartRange, [ld.volumen, ld.ingresos, ld.gastos]);
     function pickL(arr) { return fl.indices.map(function(i) { return arr[i] || 0; }); }
     chartLoans.data.labels = fl.labels;
     chartLoans.data.datasets[0].data = pickL(ld.volumen);
@@ -1720,7 +1982,7 @@ function renderMetricsSection(main, selYear) {
   wrap.appendChild(chartCard);
   main.appendChild(wrap);
 
-  var f = filterMonthsByRange(md.months, selYear, chartRange);
+  var f = filterMonthsByTrailingRange(md.months, chartRange, [md.mau.cl, md.mau.co, md.mau.pe, md.mau.ar, md.mtu.total]);
   function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
   if (chartMAU) chartMAU.destroy();
@@ -1749,7 +2011,7 @@ function renderMetricsSection(main, selYear) {
       },
       scales: {
         x: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 9 }, maxRotation: 45 }, grid: { color: 'rgba(34,40,56,0.5)' } },
-        y: { ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return fmtK(v); } }, grid: { color: 'rgba(34,40,56,0.5)' } }
+        y: { min: 0, ticks: { color: '#555d74', font: { family: "'JetBrains Mono'", size: 10 }, callback: function(v) { return fmtK(v); } }, grid: { color: 'rgba(34,40,56,0.5)' } }
       }
     }
   });
@@ -1807,7 +2069,7 @@ function renderRRHHSection(main, selYear) {
   wrap.appendChild(chartCard);
   main.appendChild(wrap);
 
-  var f = filterMonthsByRange(rd.months, selYear, chartRange);
+  var f = filterMonthsByTrailingRange(rd.months, chartRange, [rd.chile, rd.colombia, rd.peru, rd.total]);
   function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
   if (chartHC) chartHC.destroy();
@@ -1894,7 +2156,7 @@ function renderLoansSection(main, selYear) {
   wrap.appendChild(chartCard);
   main.appendChild(wrap);
 
-  var f = filterMonthsByRange(ld.months, selYear, chartRange);
+  var f = filterMonthsByTrailingRange(ld.months, chartRange, [ld.volumen, ld.ingresos, ld.gastos]);
   function pick(arr) { return f.indices.map(function(i) { return arr[i] || 0; }); }
 
   if (chartLoans) chartLoans.destroy();
@@ -1928,41 +2190,60 @@ function renderLoansSection(main, selYear) {
 }
 
 // ═══ EVENTS ═══
-document.getElementById('viewSelect').addEventListener('change', function(e) {
-  currentView = e.target.value;
-  renderDashboard();
-});
+(function attachEbitdaControls() {
+  var vs = document.getElementById('viewSelect');
+  if (vs) {
+    vs.addEventListener('change', function(e) {
+      currentView = e.target.value;
+      renderDashboard();
+    });
+  }
+  var ys = document.getElementById('yearSelect');
+  if (ys) {
+    ys.addEventListener('change', function(e) {
+      currentYear = e.target.value;
+      expandedYear = e.target.value;
+      renderDashboard();
+    });
+  }
+  var gd = document.getElementById('genDate');
+  if (gd) {
+    gd.textContent = new Date().toLocaleDateString('es-CL', {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
+  }
+})();
 
-document.getElementById('yearSelect').addEventListener('change', function(e) {
-  currentYear = e.target.value;
-  expandedYear = e.target.value;
-  renderDashboard();
-});
-
-document.getElementById('genDate').textContent = new Date().toLocaleDateString('es-CL', {
-  year: 'numeric', month: 'long', day: 'numeric'
-});
-
-// ═══ BOARD TABS ═══
+// ═══ BOARD TABS (clics también en script tras </header>; listeners duplicados no hacen falta) ═══
 function setBoardTab(tab) {
   var ebitda = document.getElementById('panelEbitda');
   var eeff = document.getElementById('panelEeff');
   var ctrls = document.getElementById('ebitdaControls');
   var tE = document.getElementById('tabEbitda');
   var tF = document.getElementById('tabEeff');
+  if (!ebitda || !eeff || !tE || !tF) return;
   if (tab === 'eeff') {
     ebitda.classList.add('panel-hidden');
     eeff.classList.remove('panel-hidden');
-    ctrls.classList.add('panel-hidden');
+    if (ctrls) ctrls.classList.add('panel-hidden');
     tE.classList.remove('active');
     tF.classList.add('active');
     tE.setAttribute('aria-selected', 'false');
     tF.setAttribute('aria-selected', 'true');
-    if (typeof renderEeffPanel === 'function') renderEeffPanel();
+    if (typeof renderEeffPanel === 'function') {
+      renderEeffPanel().catch(function(err) {
+        console.error(err);
+        var r = document.getElementById('eeffRoot');
+        if (r) {
+          r.replaceChildren();
+          r.appendChild(el('p', { style: 'color:var(--red);padding:1rem' }, 'Error EEFF: ' + (err && err.message ? err.message : String(err))));
+        }
+      });
+    }
   } else {
     ebitda.classList.remove('panel-hidden');
     eeff.classList.add('panel-hidden');
-    ctrls.classList.remove('panel-hidden');
+    if (ctrls) ctrls.classList.remove('panel-hidden');
     tE.classList.add('active');
     tF.classList.remove('active');
     tE.setAttribute('aria-selected', 'true');
@@ -1972,9 +2253,7 @@ function setBoardTab(tab) {
     }
   }
 }
-
-document.getElementById('tabEbitda').addEventListener('click', function() { setBoardTab('ebitda'); });
-document.getElementById('tabEeff').addEventListener('click', function() { setBoardTab('eeff'); });
+window.setBoardTab = setBoardTab;
 
 // ═══ EEFF PANEL ═══
 var eeffChartAssets = null;
@@ -1983,7 +2262,8 @@ var eeffSelectedId = null;
 async function eeffFetch(path, opts) {
   var o = opts || {};
   o.headers = Object.assign({}, o.headers || {}, window.budaAuthHeaders());
-  var res = await fetch(path, o);
+  if (o.cache == null) o.cache = 'no-store';
+  var res = await fetch(budaSameOriginUrl(path), o);
   if (res.status === 401) {
     sessionStorage.removeItem('buda_token');
     throw new Error('Sesión expirada');
@@ -2021,6 +2301,98 @@ function fmtEeffPct(n) {
   return (n * 100).toFixed(1) + '%';
 }
 
+function fmtEeffYoY(prev, curr) {
+  if (prev == null || curr == null || typeof prev !== 'number' || typeof curr !== 'number' || Number.isNaN(prev) || Number.isNaN(curr)) return '—';
+  if (prev === 0) return curr === 0 ? '0%' : '—';
+  var pct = (curr - prev) / Math.abs(prev);
+  var sign = pct > 0 ? '+' : '';
+  return sign + (pct * 100).toFixed(1) + '%';
+}
+
+function eeffReportTypeLabel(code) {
+  var m = { consolidated: 'Consolidado', chile: 'Chile', peru: 'Perú', colombia: 'Colombia', other: 'Otro' };
+  return m[code] || code || '—';
+}
+
+function eeffAmountUnitLabel(u) {
+  var m = { units: 'Unidades', thousands: 'Miles', millions: 'Millones' };
+  return m[u] || (u ? String(u) : '');
+}
+
+function eeffFindPrevNormalized(series, fiscalYear) {
+  if (!series || !series.length) return null;
+  for (var i = 0; i < series.length; i++) {
+    if (series[i].fiscalYear === fiscalYear && i > 0) return series[i - 1].normalized;
+  }
+  return null;
+}
+
+function eeffHeuristicRecommendations(bs, inc, rat, sanityWarnings) {
+  bs = bs || {};
+  inc = inc || {};
+  rat = rat || {};
+  var rec = [];
+  if (sanityWarnings && sanityWarnings.length) {
+    rec.push('Hay alertas de sanidad o extracción: revisa columnas (año anterior vs. actual) o corrige partidas antes de presentar al directorio.');
+  }
+  if (rat.currentRatio != null && rat.currentRatio < 1 && rat.currentRatio > 0) {
+    rec.push('Liquidez corriente baja (ratio corriente menor que 1): revisar vencimientos, capital de trabajo y líneas disponibles.');
+  }
+  if (rat.debtToEquity != null && rat.debtToEquity > 2 && rat.debtToEquity < 50) {
+    rec.push('Apalancamiento elevado: vigilar covenants, calendario de deuda y costo financiero.');
+  }
+  if (rat.netMargin != null && rat.netMargin < 0 && inc.revenue != null && inc.revenue > 0) {
+    rec.push('Margen neto negativo con ingresos declarados: profundizar en costos, margen bruto y gastos operativos.');
+  }
+  if (rat.roe != null && rat.roe < -0.05) {
+    rec.push('ROE negativo: alinear con plan de negocio y necesidad de capital o reestructuración.');
+  }
+  if (!rec.length) rec.push('No se detectaron señales automáticas fuertes; complementa con análisis IA o lectura del informe de gestión.');
+  return rec;
+}
+
+function eeffYoySummaryBlock(yoy, yoyPreviousYear, fiscalYear) {
+  if (!yoy || yoyPreviousYear == null) return null;
+  var keys = [
+    ['balanceSheet', 'totalAssets', 'Activos totales'],
+    ['balanceSheet', 'equity', 'Patrimonio'],
+    ['balanceSheet', 'totalLiabilities', 'Pasivos totales'],
+    ['incomeStatement', 'revenue', 'Ingresos'],
+    ['incomeStatement', 'netIncome', 'Utilidad del ejercicio'],
+  ];
+  var rows = [];
+  keys.forEach(function(k) {
+    var pack = yoy[k[0]] && yoy[k[0]][k[1]];
+    if (pack && typeof pack.current === 'number') rows.push({ label: k[2], pack: pack });
+  });
+  if (!rows.length) return null;
+  var tbl = el('table', { class: 'eeff-yoy-table' });
+  tbl.appendChild(el('thead', {}, el('tr', {}, [
+    el('th', {}, 'Partida'),
+    el('th', { class: 'eeff-mono' }, String(yoyPreviousYear)),
+    el('th', { class: 'eeff-mono' }, String(fiscalYear)),
+    el('th', { class: 'eeff-mono' }, 'Variación'),
+    el('th', { class: 'eeff-mono' }, '%'),
+  ])));
+  rows.forEach(function(r) {
+    var p = r.pack;
+    var pctStr = p.pctChange != null && typeof p.pctChange === 'number'
+      ? (p.pctChange > 0 ? '+' : '') + (p.pctChange * 100).toFixed(1) + '%'
+      : '—';
+    tbl.appendChild(el('tr', {}, [
+      el('td', {}, r.label),
+      el('td', { class: 'eeff-mono' }, fmtEeffNum(p.previous)),
+      el('td', { class: 'eeff-mono' }, fmtEeffNum(p.current)),
+      el('td', { class: 'eeff-mono eeff-delta' }, fmtEeffNum(p.delta)),
+      el('td', { class: 'eeff-mono eeff-delta' }, pctStr),
+    ]));
+  });
+  var wrap = el('div', { class: 'eeff-mini-table-wrap' });
+  wrap.appendChild(el('h5', {}, 'Variación año sobre año (' + yoyPreviousYear + ' → ' + fiscalYear + ')'));
+  wrap.appendChild(tbl);
+  return wrap;
+}
+
 function eeffKpiHints(bs, inc, rat) {
   bs = bs || {};
   inc = inc || {};
@@ -2053,13 +2425,33 @@ function eeffKpiHints(bs, inc, rat) {
   };
 }
 
-function eeffMiniTable(title, rows) {
-  var tbl = el('table', { class: 'eeff-mini-table' });
+function eeffMiniTable(title, rows, opts) {
+  opts = opts || {};
+  var showPrev = Boolean(opts.showPrev && opts.prevYearLabel != null);
+  var tbl = el('table', {
+    class: 'eeff-mini-table' + (showPrev ? ' eeff-mini-wide' : ''),
+  });
+  if (showPrev) {
+    tbl.appendChild(el('thead', {}, el('tr', {}, [
+      el('th', {}, 'Partida'),
+      el('th', { class: 'eeff-mono' }, String(opts.prevYearLabel)),
+      el('th', { class: 'eeff-mono' }, String(opts.currentYearLabel || '')),
+      el('th', { class: 'eeff-mono' }, 'Δ %'),
+    ])));
+  }
   rows.forEach(function(r) {
-    tbl.appendChild(el('tr', {}, [
-      el('td', {}, r.label),
-      el('td', { class: 'mono' }, fmtEeffNum(r.value)),
-    ]));
+    var cells = [el('td', {}, r.label)];
+    if (showPrev) {
+      cells.push(el('td', { class: 'eeff-mono' }, fmtEeffNum(r.prev)));
+      cells.push(el('td', { class: 'eeff-mono' }, fmtEeffNum(r.value)));
+      cells.push(el('td', { class: 'eeff-mono eeff-delta' }, fmtEeffYoY(
+        typeof r.prev === 'number' ? r.prev : null,
+        typeof r.value === 'number' ? r.value : null,
+      )));
+    } else {
+      cells.push(el('td', { class: 'eeff-mono' }, fmtEeffNum(r.value)));
+    }
+    tbl.appendChild(el('tr', {}, cells));
   });
   var w = el('div', { class: 'eeff-mini-table-wrap' });
   w.appendChild(el('h5', {}, title));
@@ -2123,34 +2515,166 @@ function eeffPatchPayloadFromForm(form) {
 
 async function renderEeffPanel() {
   var root = document.getElementById('eeffRoot');
+  if (!root) return;
   if (!window.budaGetToken()) {
     root.textContent = 'Inicia sesión para ver EEFF.';
     return;
   }
-  root.replaceChildren();
-  var wrap = el('div', { class: 'animate-in' });
+  var wrap;
+  var listWrap;
+  try {
+    root.replaceChildren();
+    root.appendChild(el('p', {
+      class: 'eeff-boot-msg',
+      style: 'color:var(--text-secondary);padding:0.5rem 0 1rem;font-size:0.88rem',
+    }, 'Cargando panel EEFF…'));
+    wrap = el('div', { class: 'eeff-panel-content' });
 
   var uploadHeader = el('div', { class: 'section-header' });
   uploadHeader.appendChild(el('div', {}, el('div', { class: 'section-title' }, 'Subir EEFF auditado (PDF)')));
-  uploadHeader.appendChild(el('div', {}, el('div', { class: 'section-subtitle' }, 'Extracción heurística de partidas; puedes corregir cifras después.')));
+  uploadHeader.appendChild(el('div', {}, el('div', { class: 'section-subtitle' },
+    'Extracción por texto; cabecera con dos años alinea la columna al año fiscal. Sugerencias al elegir PDF. OCR e IA opcionales en servidor (ver README).')));
   wrap.appendChild(uploadHeader);
 
-  var form = el('form', { class: 'eeff-upload-grid', id: 'eeffUploadForm' });
-  form.appendChild(el('div', {}, [el('label', {}, 'ID entidad'), el('input', { name: 'entityId', type: 'text', placeholder: 'ej. buda-consolidada', required: true, value: 'buda-consolidada' })]));
-  form.appendChild(el('div', {}, [el('label', {}, 'Nombre'), el('input', { name: 'entityLabel', type: 'text', placeholder: 'Buda.com SpA Cons.', value: '' })]));
-  form.appendChild(el('div', {}, [el('label', {}, 'Año fiscal'), el('input', { name: 'fiscalYear', type: 'number', min: '2000', max: '2100', required: true, value: String(new Date().getFullYear()) })]));
-  form.appendChild(el('div', {}, [el('label', {}, 'Moneda'), el('input', { name: 'currency', type: 'text', value: 'USD' })]));
+  var form = el('form', { id: 'eeffUploadForm' });
+  var metaCard = el('div', { class: 'eeff-upload-card' });
+  metaCard.appendChild(el('div', { class: 'section-subtitle', style: 'margin-bottom:0.55rem;font-size:0.8rem' }, 'Metadatos'));
+  var metaGrid = el('div', { class: 'eeff-upload-grid' });
+  metaGrid.appendChild(el('div', {}, [el('label', {}, 'ID entidad'), el('input', { name: 'entityId', type: 'text', placeholder: 'ej. buda-consolidada', required: true, value: 'buda-consolidada' })]));
+  metaGrid.appendChild(el('div', {}, [el('label', {}, 'Nombre'), el('input', { name: 'entityLabel', type: 'text', placeholder: 'Buda.com SpA Cons.', value: '' })]));
+  metaGrid.appendChild(el('div', {}, [el('label', {}, 'Año fiscal'), el('input', { name: 'fiscalYear', type: 'number', min: '2000', max: '2100', required: true, value: String(new Date().getFullYear()) })]));
+  metaGrid.appendChild(el('div', {}, [el('label', {}, 'Moneda'), el('input', { name: 'currency', type: 'text', value: 'USD' })]));
   (function() {
     var s = el('select', { name: 'reportType' });
     [['consolidated', 'Consolidado'], ['chile', 'Chile'], ['peru', 'Perú'], ['colombia', 'Colombia'], ['other', 'Otro']].forEach(function(x) {
       s.appendChild(el('option', { value: x[0] }, x[1]));
     });
-    form.appendChild(el('div', {}, [el('label', {}, 'Tipo'), s]));
+    metaGrid.appendChild(el('div', {}, [el('label', {}, 'Tipo'), s]));
   })();
-  form.appendChild(el('div', {}, [el('label', {}, 'Auditoría (opc.)'), el('input', { name: 'auditVersion', type: 'text', placeholder: 'Aud24' })]));
-  form.appendChild(el('div', {}, [el('label', {}, 'PDF'), el('input', { name: 'file', type: 'file', accept: '.pdf', required: true })]));
-  form.appendChild(el('div', {}, [el('button', { type: 'submit', class: 'eeff-btn' }, 'Subir y procesar')]));
+  metaGrid.appendChild(el('div', {}, [el('label', {}, 'Auditoría (opc.)'), el('input', { name: 'auditVersion', type: 'text', placeholder: 'Aud24' })]));
+  (function() {
+    var u = el('select', { name: 'amountUnit' });
+    [['', 'Sin indicar (cifras tal cual en el PDF)'], ['units', 'Unidades'], ['thousands', 'Miles'], ['millions', 'Millones']].forEach(function(o) {
+      u.appendChild(el('option', { value: o[0] }, o[1]));
+    });
+    metaGrid.appendChild(el('div', {}, [el('label', {}, 'Unidad de cifras (referencia)'), u]));
+  })();
+  metaCard.appendChild(metaGrid);
+  form.appendChild(metaCard);
+  var fileCard = el('div', { class: 'eeff-upload-card' });
+  fileCard.appendChild(el('div', { class: 'section-subtitle', style: 'margin-bottom:0.55rem;font-size:0.8rem' }, 'Archivo'));
+  fileCard.appendChild(el('div', {}, [el('label', {}, 'PDF'), el('input', { name: 'file', type: 'file', accept: '.pdf', required: true, id: 'eeffPdfFile' })]));
+  fileCard.appendChild(el('div', { id: 'eeffMetadataSuggest', class: 'eeff-upload-hint', style: 'display:none;margin-top:0.5rem' }));
+  fileCard.appendChild(el('div', { class: 'eeff-upload-hint' },
+    'Mejor resultado con PDF de texto seleccionable. Escaneos: opcionalmente define EEFF_OCR=1 en el servidor (poppler + tesseract).'));
+  fileCard.appendChild(el('label', {
+    style: 'display:flex;align-items:flex-start;gap:0.45rem;font-size:0.76rem;color:var(--text-secondary);margin-top:0.65rem;cursor:pointer;line-height:1.4',
+  }, [
+    el('input', { type: 'checkbox', name: 'llmExtractFull', value: 'true', style: 'margin-top:0.2rem', id: 'eeffLlmFull' }),
+    el('span', {}, 'Extracción completa con IA: sustituye todas las cifras del balance, resultado y flujo por la lectura del modelo (contrasta con el PDF; requiere OPENAI_API_KEY y EEFF_LLM_EXTRACT=1).'),
+  ]));
+  fileCard.appendChild(el('label', {
+    style: 'display:flex;align-items:flex-start;gap:0.45rem;font-size:0.76rem;color:var(--text-secondary);margin-top:0.45rem;cursor:pointer;line-height:1.4',
+  }, [
+    el('input', { type: 'checkbox', name: 'llmExtract', value: 'true', style: 'margin-top:0.2rem', id: 'eeffLlmFill' }),
+    el('span', {}, 'Solo rellenar con IA los campos que quedaron vacíos tras las reglas (no sustituye cifras ya extraídas).'),
+  ]));
+  fileCard.appendChild(el('label', {
+    style: 'display:flex;align-items:flex-start;gap:0.45rem;font-size:0.76rem;color:var(--text-secondary);margin-top:0.75rem;cursor:pointer;line-height:1.4',
+  }, [
+    el('input', { type: 'checkbox', name: 'replaceExisting', value: 'true', style: 'margin-top:0.2rem' }),
+    el('span', {}, 'Reemplazar reporte si ya existe (misma entidad y año). Elimina el PDF anterior y vuelve a extraer.'),
+  ]));
+  fileCard.appendChild(el('div', { style: 'margin-top:0.85rem' }, [el('button', { type: 'submit', class: 'eeff-btn' }, 'Subir y procesar')]));
+  form.appendChild(fileCard);
   wrap.appendChild(form);
+
+  function applyEeffMetadataSuggestions(f, s) {
+    if (!s || typeof s !== 'object') return;
+    function setIfEmpty(name, val) {
+      if (val == null || val === '') return;
+      var inp = f.querySelector('[name="' + name + '"]');
+      if (!inp) return;
+      var cur = String(inp.value != null ? inp.value : '').trim();
+      if (cur !== '') return;
+      inp.value = typeof val === 'number' ? String(val) : String(val);
+    }
+    setIfEmpty('fiscalYear', s.fiscalYear);
+    setIfEmpty('currency', s.currency);
+    setIfEmpty('entityLabel', s.entityLabel);
+    if (s.amountUnit) {
+      var au = f.querySelector('[name="amountUnit"]');
+      if (au && !String(au.value || '').trim()) au.value = s.amountUnit;
+    }
+    if (s.reportType) {
+      var rt = f.querySelector('[name="reportType"]');
+      if (rt && rt.value === 'other') rt.value = s.reportType;
+    }
+  }
+
+  (function() {
+    var cbFull = document.getElementById('eeffLlmFull');
+    var cbFill = document.getElementById('eeffLlmFill');
+    if (cbFull && cbFill) {
+      cbFull.addEventListener('change', function() { if (cbFull.checked) cbFill.checked = false; });
+      cbFill.addEventListener('change', function() { if (cbFill.checked) cbFull.checked = false; });
+    }
+  })();
+
+  var eeffLastMetaPreview = null;
+  var eeffMetaDebounce = null;
+  var pdfIn = document.getElementById('eeffPdfFile');
+  var suggestEl = document.getElementById('eeffMetadataSuggest');
+  if (pdfIn && suggestEl) {
+    pdfIn.addEventListener('change', function() {
+      clearTimeout(eeffMetaDebounce);
+      eeffLastMetaPreview = null;
+      suggestEl.style.display = 'none';
+      suggestEl.replaceChildren();
+      var file = pdfIn.files && pdfIn.files[0];
+      if (!file) return;
+      eeffMetaDebounce = setTimeout(async function() {
+        var fd = new FormData();
+        fd.append('file', file);
+        try {
+          var res = await fetch('/api/eeff/metadata-preview', { method: 'POST', headers: window.budaAuthHeaders(), body: fd });
+          var j = await res.json().catch(function() { return {}; });
+          if (!res.ok) {
+            suggestEl.style.display = 'block';
+            suggestEl.appendChild(el('span', { style: 'color:var(--red)' }, j.error || j.message || 'Vista previa no disponible'));
+            return;
+          }
+          eeffLastMetaPreview = j;
+          suggestEl.style.display = 'block';
+          suggestEl.replaceChildren();
+          suggestEl.appendChild(el('div', { style: 'font-weight:600;margin-bottom:0.35rem' }, 'Sugerencias del PDF (heurística)'));
+          var s = j.suggestions || {};
+          var bits = [];
+          if (s.fiscalYear != null) bits.push('Año: ' + s.fiscalYear);
+          if (s.currency) bits.push('Moneda: ' + s.currency);
+          if (s.reportType) bits.push('Tipo: ' + s.reportType);
+          if (s.amountUnit) bits.push('Unidad: ' + s.amountUnit);
+          if (s.entityLabel) bits.push('Nombre: ' + String(s.entityLabel).slice(0, 90));
+          suggestEl.appendChild(el('div', { style: 'font-size:0.72rem;line-height:1.45' }, bits.length ? bits.join(' · ') : 'Sin sugerencias claras.'));
+          var conf = j.confidenceNotes || [];
+          if (conf.length) {
+            var cul = el('ul', { style: 'margin:0.35rem 0 0 1rem;font-size:0.68rem;color:var(--text-muted)' });
+            conf.slice(0, 5).forEach(function(c) { cul.appendChild(el('li', {}, c)); });
+            suggestEl.appendChild(cul);
+          }
+          var applyBtn = el('button', { type: 'button', class: 'eeff-btn secondary', style: 'margin-top:0.5rem' }, 'Aplicar a campos vacíos');
+          applyBtn.addEventListener('click', function() {
+            if (!eeffLastMetaPreview) return;
+            applyEeffMetadataSuggestions(form, eeffLastMetaPreview.suggestions || {});
+          });
+          suggestEl.appendChild(applyBtn);
+        } catch (err) {
+          suggestEl.style.display = 'block';
+          suggestEl.textContent = String(err.message || err);
+        }
+      }, 450);
+    });
+  }
 
   form.addEventListener('submit', async function(ev) {
     ev.preventDefault();
@@ -2161,7 +2685,9 @@ async function renderEeffPanel() {
       var res = await fetch('/api/eeff/upload', { method: 'POST', headers: window.budaAuthHeaders(), body: fd });
       var j = await res.json().catch(function() { return {}; });
       if (!res.ok) {
-        alert(j.error === 'duplicate_entity_year' ? 'Ya existe un reporte para esa entidad y año.' : (j.error || 'Error'));
+        alert(j.error === 'duplicate_entity_year'
+          ? 'Ya existe un reporte para esa entidad y año. Marca «Reemplazar reporte» y vuelve a enviar, o cambia entidad/año.'
+          : (j.error || 'Error'));
         return;
       }
       eeffSelectedId = j.id;
@@ -2177,13 +2703,24 @@ async function renderEeffPanel() {
   listHeader.appendChild(el('div', {}, el('div', { class: 'section-title' }, 'Reportes cargados')));
   wrap.appendChild(listHeader);
 
-  var listWrap = el('div', { id: 'eeffListWrap' });
+  listWrap = el('div', { id: 'eeffListWrap' });
   wrap.appendChild(listWrap);
+  root.replaceChildren();
   root.appendChild(wrap);
+  } catch (buildErr) {
+    console.error(buildErr);
+    root.replaceChildren();
+    root.appendChild(el('p', { style: 'color:var(--red);padding:1.25rem' }, 'Error al montar EEFF: ' + (buildErr && buildErr.message ? buildErr.message : String(buildErr))));
+    return;
+  }
 
   try {
     var res = await eeffFetch('/api/eeff/reports');
     var rows = await res.json();
+    if (!Array.isArray(rows)) {
+      listWrap.appendChild(el('p', { style: 'color:var(--red)' }, 'Respuesta inválida del servidor (no es una lista).'));
+      rows = [];
+    }
     if (!rows.length) {
       listWrap.appendChild(el('p', { style: 'color:var(--text-muted);font-size:0.85rem;' }, 'Aún no hay PDFs. Sube el primero arriba.'));
     } else {
@@ -2228,7 +2765,14 @@ async function renderEeffPanel() {
 
   var detail = el('div', { id: 'eeffDetail' });
   root.appendChild(detail);
-  if (eeffSelectedId) await renderEeffDetail();
+  if (eeffSelectedId) {
+    try {
+      await renderEeffDetail();
+    } catch (detailErr) {
+      console.error(detailErr);
+      detail.appendChild(el('p', { style: 'color:var(--red)' }, 'Error al abrir detalle: ' + (detailErr && detailErr.message ? detailErr.message : String(detailErr))));
+    }
+  }
 }
 
 async function renderEeffDetail() {
@@ -2244,11 +2788,31 @@ async function renderEeffDetail() {
   var rep = payload.report;
   var series = payload.series || [];
   var trends = payload.trends || { years: [], metrics: {} };
+  var yoy = payload.yoy;
+  var yoyPreviousYear = payload.yoyPreviousYear;
   var n = rep.normalized || {};
   var ext = n.extraction || {};
+  var meta = n.metadata || {};
   var bs = n.balanceSheet || {};
   var inc = n.incomeStatement || {};
   var cf = n.cashFlow || {};
+  var sanityList = ext.sanityWarnings && ext.sanityWarnings.length ? ext.sanityWarnings : [];
+  var prevNorm = eeffFindPrevNormalized(series, rep.fiscalYear);
+  var pbs = prevNorm && prevNorm.balanceSheet;
+  var pin = prevNorm && prevNorm.incomeStatement;
+  var pcf = prevNorm && prevNorm.cashFlow;
+  var prevFy = null;
+  if (series && series.length) {
+    for (var ix = 0; ix < series.length; ix++) {
+      if (series[ix].fiscalYear === rep.fiscalYear && ix > 0) {
+        prevFy = series[ix - 1].fiscalYear;
+        break;
+      }
+    }
+  }
+  var tablePrevOpts = prevFy != null
+    ? { showPrev: true, prevYearLabel: prevFy, currentYearLabel: rep.fiscalYear }
+    : { showPrev: false };
 
   var head = el('div', { class: 'section-header', style: 'margin-top:2rem' });
   var titleRow = el('div', { style: 'display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap' });
@@ -2256,9 +2820,16 @@ async function renderEeffDetail() {
   var st = ext.status || rep.extractionStatus || '—';
   var statusClass = st === 'ok' ? 'ok' : st === 'partial' ? 'partial' : 'failed';
   titleRow.appendChild(el('span', { class: 'eeff-badge ' + statusClass }, String(st).toUpperCase()));
-  titleRow.appendChild(el('span', { style: 'font-size:0.78rem;color:var(--text-muted)' }, 'Moneda: ' + (rep.currency || '—')));
   head.appendChild(el('div', {}, titleRow));
-  head.appendChild(el('div', {}, [
+  var metaBits = [
+    'Moneda: ' + (rep.currency || meta.currency || '—'),
+    'Tipo: ' + eeffReportTypeLabel(rep.reportType || meta.reportType),
+  ];
+  if (rep.auditVersion || meta.auditVersion) metaBits.push('Auditoría: ' + String(rep.auditVersion || meta.auditVersion));
+  var unitLbl = eeffAmountUnitLabel(meta.amountUnit);
+  if (unitLbl) metaBits.push('Unidad referida: ' + unitLbl);
+  head.appendChild(el('div', { class: 'eeff-detail-meta' }, metaBits.join(' · ')));
+  head.appendChild(el('div', { style: 'margin-top:0.65rem' }, [
     el('button', { type: 'button', class: 'eeff-btn secondary', id: 'eeffBtnAnalyze' }, 'Generar análisis IA'),
     el('button', { type: 'button', class: 'eeff-btn secondary danger', style: 'margin-left:0.5rem', id: 'eeffBtnDel' }, 'Eliminar documento'),
   ]));
@@ -2279,6 +2850,95 @@ async function renderEeffDetail() {
     } catch (e) { alert(e.message); }
     finally { btn.disabled = false; }
   });
+
+  var warnList = ext.warnings && ext.warnings.length ? ext.warnings : [];
+  var yoyWarnList = ext.yoyPlausibilityWarnings && ext.yoyPlausibilityWarnings.length ? ext.yoyPlausibilityWarnings : [];
+  if (warnList.length) {
+    var wbox = el('div', { class: 'eeff-warnings' });
+    wbox.appendChild(el('strong', {}, 'Extracción (PDF): '));
+    wbox.appendChild(document.createTextNode('revisa las siguientes alertas.'));
+    var wul = el('ul');
+    warnList.forEach(function(w) { wul.appendChild(el('li', {}, w)); });
+    wbox.appendChild(wul);
+    detail.appendChild(wbox);
+  }
+  if (yoyWarnList.length) {
+    var ybox = el('div', { class: 'eeff-warnings', style: 'border-color:rgba(234,179,8,0.45)' });
+    ybox.appendChild(el('strong', {}, 'Comparabilidad vs año anterior: '));
+    ybox.appendChild(document.createTextNode('no bloquea el guardado; revisa si la magnitud es creíble.'));
+    var yul = el('ul');
+    yoyWarnList.forEach(function(w) { yul.appendChild(el('li', {}, w)); });
+    ybox.appendChild(yul);
+    detail.appendChild(ybox);
+  }
+  if (sanityList.length) {
+    var sbox = el('div', { class: 'eeff-warnings eeff-sanity' });
+    sbox.appendChild(el('strong', {}, 'Sanidad de datos: '));
+    sbox.appendChild(document.createTextNode('posible error de columna o escala; los KPI pueden ser engañosos hasta corregir.'));
+    var sul = el('ul');
+    sanityList.forEach(function(w) { sul.appendChild(el('li', {}, w)); });
+    sbox.appendChild(sul);
+    detail.appendChild(sbox);
+  }
+
+  var rat = rep.ratios || {};
+  /* KPI visibility: same rule as server/lib/shouldShowEeffKpi.js — ok + zero sanity warnings */
+  var showEeffKpi = st === 'ok' && sanityList.length === 0;
+  if (!showEeffKpi) {
+    var kpiHiddenMsg = st === 'failed'
+      ? 'Extracción insuficiente: no mostramos KPI hasta tener partidas mínimas confiables. Revisa el PDF, corrige cifras abajo o vuelve a subir con «Reemplazar reporte».'
+      : 'KPI ocultos hasta que el estado de extracción sea OK y no haya alertas de sanidad. Corrige cifras en el formulario de abajo o vuelve a subir con «Reemplazar reporte».';
+    detail.appendChild(el('div', {
+      class: 'eeff-warnings',
+      style: 'margin-bottom:1rem',
+    }, el('div', { style: 'font-size:0.8rem;line-height:1.5' }, kpiHiddenMsg)));
+  } else {
+    var hints = eeffKpiHints(bs, inc, rat);
+    var ratioGrid = el('div', { class: 'kpi-grid', style: 'grid-template-columns:repeat(4,1fr);margin-bottom:1rem' });
+    [
+      ['Ratio corriente', rat.currentRatio != null ? rat.currentRatio.toFixed(2) : '—', hints.currentRatio],
+      ['Deuda / Patrimonio', rat.debtToEquity != null ? rat.debtToEquity.toFixed(2) : '—', hints.debtToEquity],
+      ['Margen neto', fmtEeffPct(rat.netMargin), hints.netMargin],
+      ['ROE', fmtEeffPct(rat.roe), hints.roe],
+    ].forEach(function(x) {
+      var card = el('div', { class: 'kpi-card neutral' });
+      card.appendChild(el('div', { class: 'kpi-label' }, x[0]));
+      card.appendChild(el('div', { class: 'kpi-value' }, x[1]));
+      if (x[2]) card.appendChild(el('div', { class: 'kpi-hint' }, x[2]));
+      ratioGrid.appendChild(card);
+    });
+    detail.appendChild(ratioGrid);
+  }
+
+  detail.appendChild(el('div', { class: 'section-subtitle', style: 'margin:0.75rem 0 0.5rem' }, 'Estados financieros (resumen)'));
+  detail.appendChild(eeffMiniTable('Balance (situación financiera)', [
+    { label: 'Activos totales', value: bs.totalAssets, prev: pbs ? pbs.totalAssets : null },
+    { label: 'Activos corrientes', value: bs.currentAssets, prev: pbs ? pbs.currentAssets : null },
+    { label: 'Activos no corrientes', value: bs.nonCurrentAssets, prev: pbs ? pbs.nonCurrentAssets : null },
+    { label: 'Pasivos totales', value: bs.totalLiabilities, prev: pbs ? pbs.totalLiabilities : null },
+    { label: 'Pasivos corrientes', value: bs.currentLiabilities, prev: pbs ? pbs.currentLiabilities : null },
+    { label: 'Pasivos no corrientes', value: bs.nonCurrentLiabilities, prev: pbs ? pbs.nonCurrentLiabilities : null },
+    { label: 'Patrimonio', value: bs.equity, prev: pbs ? pbs.equity : null },
+  ], tablePrevOpts));
+  detail.appendChild(eeffMiniTable('Estado de resultados', [
+    { label: 'Ingresos', value: inc.revenue, prev: pin ? pin.revenue : null },
+    { label: 'Costo de ventas / operacional', value: inc.costOfSales, prev: pin ? pin.costOfSales : null },
+    { label: 'Margen / resultado bruto', value: inc.grossProfit, prev: pin ? pin.grossProfit : null },
+    { label: 'Gastos operacionales', value: inc.operatingExpenses, prev: pin ? pin.operatingExpenses : null },
+    { label: 'Resultado operacional', value: inc.operatingIncome, prev: pin ? pin.operatingIncome : null },
+    { label: 'Resultado financiero', value: inc.financialResult, prev: pin ? pin.financialResult : null },
+    { label: 'Impuesto a la renta', value: inc.incomeTax, prev: pin ? pin.incomeTax : null },
+    { label: 'Utilidad del ejercicio', value: inc.netIncome, prev: pin ? pin.netIncome : null },
+  ], tablePrevOpts));
+  detail.appendChild(eeffMiniTable('Flujo de efectivo', [
+    { label: 'Operación', value: cf.operating, prev: pcf ? pcf.operating : null },
+    { label: 'Inversión', value: cf.investing, prev: pcf ? pcf.investing : null },
+    { label: 'Financiamiento', value: cf.financing, prev: pcf ? pcf.financing : null },
+    { label: 'Variación neta de efectivo', value: cf.netChangeInCash, prev: pcf ? pcf.netChangeInCash : null },
+  ], tablePrevOpts));
+
+  var yoyBlock = eeffYoySummaryBlock(yoy, yoyPreviousYear, rep.fiscalYear);
+  if (yoyBlock) detail.appendChild(yoyBlock);
 
   if (trends.years && trends.years.length > 1) {
     var ch = el('div', { class: 'chart-card', style: 'height:280px;margin-bottom:1rem' });
@@ -2307,70 +2967,67 @@ async function renderEeffDetail() {
     });
   }
 
-  var warnList = ext.warnings && ext.warnings.length ? ext.warnings : [];
-  if (warnList.length) {
-    var wbox = el('div', { class: 'eeff-warnings' });
-    wbox.appendChild(el('strong', {}, 'Extracción: '));
-    wbox.appendChild(document.createTextNode('revisa las siguientes alertas.'));
-    var wul = el('ul');
-    warnList.forEach(function(w) { wul.appendChild(el('li', {}, w)); });
-    wbox.appendChild(wul);
-    detail.appendChild(wbox);
+  var recSec = el('div', { class: 'eeff-rec-section' });
+  recSec.appendChild(el('h5', {}, 'Recomendaciones y seguimiento'));
+  if (rep.llmAnalysis && !rep.llmAnalysis.skipped) {
+    var a = rep.llmAnalysis;
+    var iaBlock = el('div', { class: 'eeff-analysis-block', style: 'margin-top:0' });
+    iaBlock.appendChild(el('h4', {}, 'Resumen ejecutivo (IA)'));
+    iaBlock.appendChild(document.createTextNode(a.executiveSummary || ''));
+    if (a.trends && a.trends.length) {
+      iaBlock.appendChild(el('h4', {}, 'Tendencias'));
+      var ulT = el('ul');
+      a.trends.forEach(function(t) {
+        var li = document.createElement('li');
+        li.appendChild(el('strong', {}, t.title + ': '));
+        li.appendChild(document.createTextNode(t.detail || ''));
+        ulT.appendChild(li);
+      });
+      iaBlock.appendChild(ulT);
+    }
+    if (a.risks && a.risks.length) {
+      iaBlock.appendChild(el('h4', {}, 'Riesgos'));
+      var ur = el('ul');
+      a.risks.forEach(function(x) { ur.appendChild(el('li', {}, x)); });
+      iaBlock.appendChild(ur);
+    }
+    if (a.recommendations && a.recommendations.length) {
+      iaBlock.appendChild(el('h4', {}, 'Recomendaciones (IA)'));
+      var ur2 = el('ul');
+      a.recommendations.forEach(function(x) { ur2.appendChild(el('li', {}, x)); });
+      iaBlock.appendChild(ur2);
+    }
+    if (a.boardQuestions && a.boardQuestions.length) {
+      iaBlock.appendChild(el('h4', {}, 'Preguntas para el directorio'));
+      var ur3 = el('ul');
+      a.boardQuestions.forEach(function(x) { ur3.appendChild(el('li', {}, x)); });
+      iaBlock.appendChild(ur3);
+    }
+    recSec.appendChild(iaBlock);
+  } else if (rep.llmAnalysis && rep.llmAnalysis.skipped) {
+    recSec.appendChild(el('p', { style: 'font-size:0.78rem;color:var(--text-muted);margin:0 0 0.75rem;line-height:1.45' },
+      'Análisis IA no disponible: ' + (rep.llmAnalysis.reason || 'sin clave u otro motivo') + '. Puedes usar las señales automáticas abajo o configurar OPENAI_API_KEY en el servidor.'));
+  } else {
+    recSec.appendChild(el('p', { style: 'font-size:0.78rem;color:var(--text-muted);margin:0 0 0.75rem;line-height:1.45' },
+      'Aún no hay análisis IA para este documento. Pulsa «Generar análisis IA» si el servidor tiene OPENAI_API_KEY.'));
   }
+  recSec.appendChild(el('div', { class: 'section-subtitle', style: 'margin:0.5rem 0 0.35rem;font-size:0.75rem' }, 'Señales automáticas (sin IA)'));
+  var hRec = el('ul', { style: 'margin:0;font-size:0.8rem;line-height:1.5;color:var(--text-secondary)' });
+  eeffHeuristicRecommendations(bs, inc, rat, sanityList).forEach(function(t) {
+    hRec.appendChild(el('li', { style: 'margin:0.25rem 0' }, t));
+  });
+  recSec.appendChild(hRec);
+  detail.appendChild(recSec);
 
   var rawSample = ext.rawTextSample || '';
   if (rawSample) {
     var prevDet = el('details', { class: 'eeff-text-preview' });
-    prevDet.appendChild(el('summary', {}, 'Vista previa del texto extraído del PDF'));
+    prevDet.appendChild(el('summary', {}, 'Vista previa del texto extraído del PDF (técnico)'));
     var prevPre = el('pre', { class: 'mono' });
     prevPre.textContent = rawSample.length > 16000 ? rawSample.slice(0, 16000) + '\n…' : rawSample;
     prevDet.appendChild(prevPre);
     detail.appendChild(prevDet);
   }
-
-  var rat = rep.ratios || {};
-  var hints = eeffKpiHints(bs, inc, rat);
-  var ratioGrid = el('div', { class: 'kpi-grid', style: 'grid-template-columns:repeat(4,1fr);margin-bottom:1rem' });
-  [
-    ['Ratio corriente', rat.currentRatio != null ? rat.currentRatio.toFixed(2) : '—', hints.currentRatio],
-    ['Deuda / Patrimonio', rat.debtToEquity != null ? rat.debtToEquity.toFixed(2) : '—', hints.debtToEquity],
-    ['Margen neto', fmtEeffPct(rat.netMargin), hints.netMargin],
-    ['ROE', fmtEeffPct(rat.roe), hints.roe],
-  ].forEach(function(x) {
-    var card = el('div', { class: 'kpi-card neutral' });
-    card.appendChild(el('div', { class: 'kpi-label' }, x[0]));
-    card.appendChild(el('div', { class: 'kpi-value' }, x[1]));
-    if (x[2]) card.appendChild(el('div', { class: 'kpi-hint' }, x[2]));
-    ratioGrid.appendChild(card);
-  });
-  detail.appendChild(ratioGrid);
-
-  detail.appendChild(el('div', { class: 'section-subtitle', style: 'margin:0.75rem 0 0.5rem' }, 'Resumen de partidas'));
-  detail.appendChild(eeffMiniTable('Balance (situación financiera)', [
-    { label: 'Activos totales', value: bs.totalAssets },
-    { label: 'Activos corrientes', value: bs.currentAssets },
-    { label: 'Activos no corrientes', value: bs.nonCurrentAssets },
-    { label: 'Pasivos totales', value: bs.totalLiabilities },
-    { label: 'Pasivos corrientes', value: bs.currentLiabilities },
-    { label: 'Pasivos no corrientes', value: bs.nonCurrentLiabilities },
-    { label: 'Patrimonio', value: bs.equity },
-  ]));
-  detail.appendChild(eeffMiniTable('Estado de resultados', [
-    { label: 'Ingresos', value: inc.revenue },
-    { label: 'Costo de ventas / operacional', value: inc.costOfSales },
-    { label: 'Margen / resultado bruto', value: inc.grossProfit },
-    { label: 'Gastos operacionales', value: inc.operatingExpenses },
-    { label: 'Resultado operacional', value: inc.operatingIncome },
-    { label: 'Resultado financiero', value: inc.financialResult },
-    { label: 'Impuesto a la renta', value: inc.incomeTax },
-    { label: 'Utilidad del ejercicio', value: inc.netIncome },
-  ]));
-  detail.appendChild(eeffMiniTable('Flujo de efectivo', [
-    { label: 'Operación', value: cf.operating },
-    { label: 'Inversión', value: cf.investing },
-    { label: 'Financiamiento', value: cf.financing },
-    { label: 'Variación neta de efectivo', value: cf.netChangeInCash },
-  ]));
 
   var editSec = el('div', { class: 'eeff-edit-section' });
   editSec.appendChild(el('h5', {}, 'Corregir cifras'));
@@ -2447,45 +3104,6 @@ async function renderEeffDetail() {
   pre.textContent = JSON.stringify({ balanceSheet: bs, incomeStatement: inc, cashFlow: cf }, null, 2);
   jsonDet.appendChild(pre);
   detail.appendChild(jsonDet);
-
-  if (rep.llmAnalysis && !rep.llmAnalysis.skipped) {
-    var a = rep.llmAnalysis;
-    var block = el('div', { class: 'eeff-analysis-block' });
-    block.appendChild(el('h4', {}, 'Resumen ejecutivo'));
-    block.appendChild(document.createTextNode(a.executiveSummary || ''));
-    if (a.trends && a.trends.length) {
-      block.appendChild(el('h4', {}, 'Tendencias'));
-      var ul = el('ul');
-      a.trends.forEach(function(t) {
-        var li = document.createElement('li');
-        li.appendChild(el('strong', {}, t.title + ': '));
-        li.appendChild(document.createTextNode(t.detail || ''));
-        ul.appendChild(li);
-      });
-      block.appendChild(ul);
-    }
-    if (a.risks && a.risks.length) {
-      block.appendChild(el('h4', {}, 'Riesgos'));
-      var ur = el('ul');
-      a.risks.forEach(function(x) { ur.appendChild(el('li', {}, x)); });
-      block.appendChild(ur);
-    }
-    if (a.recommendations && a.recommendations.length) {
-      block.appendChild(el('h4', {}, 'Recomendaciones'));
-      var ur2 = el('ul');
-      a.recommendations.forEach(function(x) { ur2.appendChild(el('li', {}, x)); });
-      block.appendChild(ur2);
-    }
-    if (a.boardQuestions && a.boardQuestions.length) {
-      block.appendChild(el('h4', {}, 'Preguntas para el directorio'));
-      var ur3 = el('ul');
-      a.boardQuestions.forEach(function(x) { ur3.appendChild(el('li', {}, x)); });
-      block.appendChild(ur3);
-    }
-    detail.appendChild(block);
-  } else if (rep.llmAnalysis && rep.llmAnalysis.skipped) {
-    detail.appendChild(el('p', { class: 'eeff-analysis-block' }, 'Análisis IA: ' + (rep.llmAnalysis.reason || 'no disponible')));
-  }
 }
 
 window.renderEeffPanel = renderEeffPanel;
@@ -2519,17 +3137,73 @@ function renderEbitdaSheetsMissing() {
   var row = el('div', { style: 'margin-top:0.85rem;display:flex;gap:0.5rem;flex-wrap:wrap' });
   var btnGo = el('button', { type: 'button', class: 'eeff-btn' }, 'Ir a EEFF auditados');
   btnGo.addEventListener('click', function() {
-    setBoardTab('eeff');
+    if (typeof window.setBoardTab === 'function') window.setBoardTab('eeff');
   });
   row.appendChild(btnGo);
   box.appendChild(row);
   main.appendChild(box);
 }
 
+// ═══ Chart.js (script externo al final del body) ═══
+window.budaChartScriptFailed = false;
+function waitForChartLibrary(maxMs) {
+  return new Promise(function(resolve, reject) {
+    if (typeof Chart !== 'undefined') return resolve();
+    var start = Date.now();
+    var id = setInterval(function() {
+      if (window.budaChartScriptFailed) {
+        clearInterval(id);
+        reject(new Error('No se pudo descargar Chart.js (CDN bloqueado o sin red).'));
+      } else if (typeof Chart !== 'undefined') {
+        clearInterval(id);
+        resolve();
+      } else if (Date.now() - start > maxMs) {
+        clearInterval(id);
+        reject(new Error(
+          'Chart.js no cargó a tiempo (jsdelivr.net bloqueado o lento). Sin Chart no se puede mostrar EBITDA Live.',
+        ));
+      }
+    }, 40);
+  });
+}
+
+function fetchWithTimeout(url, options, ms) {
+  var ctrl = new AbortController();
+  var tid = setTimeout(function() { ctrl.abort(); }, ms);
+  return fetch(
+    budaSameOriginUrl(url),
+    Object.assign({}, options || {}, { signal: ctrl.signal, cache: 'no-store' }),
+  ).finally(function() {
+    clearTimeout(tid);
+  });
+}
+
+function setEbitdaLoadingHint(text) {
+  var lt = document.querySelector('#loadingOverlay .loading-text');
+  if (lt) lt.textContent = text;
+}
+
+var budaEbitdaLoadPromise = null;
+
 // ═══ INIT: LOAD ALL SHEETS ═══
 async function loadEbitdaSheets() {
+  if (budaEbitdaLoadPromise) return budaEbitdaLoadPromise;
+  budaEbitdaLoadPromise = (async function() {
   try {
-    var cfgRes = await fetch('/api/config');
+    setEbitdaLoadingHint('Paso 1/4: leyendo configuración del servidor…');
+    var cfgRes;
+    try {
+      cfgRes = await fetchWithTimeout('/api/config', {}, 12000);
+    } catch (e) {
+      throw new Error(
+        e && e.name === 'AbortError'
+          ? 'El servidor no respondió a /api/config a tiempo. ¿Está corriendo npm start en buda-board/server?'
+          : 'No se pudo contactar al servidor: ' + (e && e.message ? e.message : String(e)),
+      );
+    }
+    if (!cfgRes.ok) {
+      throw new Error('HTTP ' + cfgRes.status + ' al leer /api/config. ¿Servidor correcto en este puerto?');
+    }
     var cfg = await cfgRes.json().catch(function() {
       return {};
     });
@@ -2542,12 +3216,13 @@ async function loadEbitdaSheets() {
     }
     window.budaGoogleSheetsConfigured = true;
 
+    setEbitdaLoadingHint('Paso 2/4: descargando hojas desde Google (varias peticiones)…');
     var sheets = await Promise.all([
       fetchSheet(SHEET_NAMES.consolidated),
       fetchSheet(SHEET_NAMES.chile),
       fetchSheet(SHEET_NAMES.peru),
       fetchSheet(SHEET_NAMES.colombia),
-      fetchSheet('METRICS_LIVE', 'A1:CZ30'),
+      fetchSheet('METRICS_LIVE', 'A1:CZ100'),
       fetchSheet('RRHH_LIVE', 'A25:CZ35'),
       fetchSheet('LOANS_LIVE', 'A1:CZ20'),
     ]);
@@ -2560,52 +3235,111 @@ async function loadEbitdaSheets() {
     DATA.rrhh = parseRRHH(sheets[5]);
     DATA.loans = parseLoans(sheets[6]);
 
+    setEbitdaLoadingHint('Paso 3/4: cargando librería de gráficos…');
+    await waitForChartLibrary(25000);
+    setEbitdaLoadingHint('Paso 4/4: dibujando tablero…');
     window.budaEbitdaSheetsError = null;
-    renderDashboard();
+    try {
+      renderDashboard();
+    } catch (renderErr) {
+      console.error(renderErr);
+      throw new Error(
+        'Datos cargados pero error al pintar el tablero: ' + (renderErr && renderErr.message ? renderErr.message : String(renderErr)),
+      );
+    }
   } catch (err) {
     window.budaEbitdaSheetsError = err.message || String(err);
     var main = document.getElementById('mainContent');
+    if (!main) return;
     main.replaceChildren();
+    var msg = err.message || String(err);
+    var isChart = /Chart\.js|chart\.js|CDN|jsdelivr|descargar Chart/i.test(msg);
+    var isNet = /\/api\/config|servidor|AbortError|contactar/i.test(msg);
     var box = el('div', { class: 'loading-overlay', style: 'align-items:flex-start;text-align:left;max-width:640px;margin:0 auto' });
-    box.appendChild(el('div', { class: 'loading-text', style: 'color: var(--red); margin-bottom: 0.75rem' }, 'EBITDA Live: ' + err.message));
-    var p1 = el('div', { class: 'loading-text', style: 'line-height:1.55;margin-bottom:0.75rem' });
-    p1.textContent = 'El servidor necesita credenciales de Google Sheets en el archivo server/.env (no en el navegador). Añade estas dos líneas con tus valores, guarda y reinicia npm start:';
-    box.appendChild(p1);
-    var pre = el('pre', {
-      class: 'mono',
-      style: 'font-size:0.72rem;background:var(--bg-card);padding:1rem;border-radius:8px;border:1px solid var(--border);overflow:auto;white-space:pre-wrap',
-    });
-    pre.textContent =
-      'GOOGLE_SHEETS_SPREADSHEET_ID=tu_id_del_documento\n' +
-      'GOOGLE_SHEETS_API_KEY=tu_clave_de_API';
-    box.appendChild(pre);
-    var p2 = el('div', { class: 'loading-text', style: 'line-height:1.55;margin-top:0.75rem;color:var(--text-secondary)' });
-    p2.innerHTML =
-      'El ID del spreadsheet es el tramo largo de la URL al abrir la hoja en el navegador. La clave API se crea en ' +
-      '<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent)">Google Cloud → Credenciales</a>' +
-      ' (API de Google Sheets debe estar habilitada para ese proyecto).';
-    box.appendChild(p2);
+    box.appendChild(el('div', { class: 'loading-text', style: 'color: var(--red); margin-bottom: 0.75rem' }, 'EBITDA Live: ' + msg));
+    if (isChart) {
+      box.appendChild(el('div', { class: 'loading-text', style: 'line-height:1.55;margin-bottom:0.75rem' },
+        'Permite carga desde cdn.jsdelivr.net o instala Chart en local. Mientras tanto puedes usar EEFF auditados.'));
+    } else if (isNet) {
+      box.appendChild(el('div', { class: 'loading-text', style: 'line-height:1.55;margin-bottom:0.75rem' },
+        'Comprueba que el backend esté en marcha en este mismo origen (p. ej. npm start en server en el puerto 3847).'));
+    } else {
+      var p1 = el('div', { class: 'loading-text', style: 'line-height:1.55;margin-bottom:0.75rem' });
+      p1.textContent = 'Si el error es de Google Sheets, revisa server/.env:';
+      box.appendChild(p1);
+      var pre = el('pre', {
+        class: 'mono',
+        style: 'font-size:0.72rem;background:var(--bg-card);padding:1rem;border-radius:8px;border:1px solid var(--border);overflow:auto;white-space:pre-wrap',
+      });
+      pre.textContent =
+        'GOOGLE_SHEETS_SPREADSHEET_ID=tu_id_del_documento\n' +
+        'GOOGLE_SHEETS_API_KEY=tu_clave_de_API';
+      box.appendChild(pre);
+      var p2 = el('div', { class: 'loading-text', style: 'line-height:1.55;margin-top:0.75rem;color:var(--text-secondary)' });
+      p2.innerHTML =
+        'Google Cloud → <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent)">Credenciales</a> (Sheets API habilitada).';
+      box.appendChild(p2);
+    }
     var p3 = el('div', { class: 'loading-text', style: 'margin-top:1rem' });
-    p3.appendChild(document.createTextNode('Puedes usar la pestaña '));
+    p3.appendChild(document.createTextNode('Puedes usar '));
     p3.appendChild(el('strong', {}, 'EEFF auditados'));
-    p3.appendChild(document.createTextNode(' sin configurar Sheets.'));
+    p3.appendChild(document.createTextNode(' arriba a la derecha.'));
     box.appendChild(p3);
     var btnGo = el('button', { type: 'button', class: 'eeff-btn', style: 'margin-top:1rem' }, 'Ir a EEFF auditados');
     btnGo.addEventListener('click', function() {
-      setBoardTab('eeff');
+      if (typeof window.setBoardTab === 'function') window.setBoardTab('eeff');
     });
     box.appendChild(btnGo);
     main.appendChild(box);
   }
+  })();
+  try {
+    await budaEbitdaLoadPromise;
+  } finally {
+    budaEbitdaLoadPromise = null;
+  }
 }
 
+window.loadEbitdaSheets = loadEbitdaSheets;
+
 window.budaAfterLogin = function() {
-  loadEbitdaSheets();
+  /* Defer: asegura token en sessionStorage y evita carreras con el resto del handler de login. */
+  setTimeout(function() {
+    var p = loadEbitdaSheets();
+    if (p && typeof p.then === 'function') {
+      p.catch(function(err) {
+        console.error('[Buda] loadEbitdaSheets:', err);
+      });
+    }
+  }, 0);
 };
 
-(function initBoard() {
-  if (window.budaGetToken()) loadEbitdaSheets();
-})();
+function budaKickEbitdaLoadIfNeeded() {
+  if (!window.budaGetToken()) return;
+  var mc = document.getElementById('mainContent');
+  var stillSpinner = mc && mc.querySelector('.loading-spinner');
+  if (stillSpinner && typeof window.loadEbitdaSheets === 'function') {
+    var p = window.loadEbitdaSheets();
+    if (p && typeof p.then === 'function') {
+      p.catch(function(err) {
+        console.error('[Buda] loadEbitdaSheets:', err);
+      });
+    }
+  }
+}
+
+/*
+ * No esperar a window "load": chart.umd.min.js va después de este bloque; si Chart tarda o cuelga,
+ * "load" no dispara y el tablero nunca pide /api/config ni las hojas (spinner infinito sin logs de Sheets).
+ * Arrancamos en cuanto este script termina; waitForChartLibrary sigue esperando a Chart más adelante.
+ */
+budaKickEbitdaLoadIfNeeded();
+
+/* Red de seguridad tras todos los recursos (p. ej. token/session listos en casos raros) */
+window.addEventListener('load', function() {
+  budaKickEbitdaLoadIfNeeded();
+});
 </script>
+<script src="/chart.umd.min.js" onerror="window.budaChartScriptFailed=true;"></script>
 </body>
 </html>
