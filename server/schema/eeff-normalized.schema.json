@@ -18,6 +18,10 @@
           "enum": ["consolidated", "chile", "peru", "colombia", "other"]
         },
         "auditVersion": { "type": "string" },
+        "amountUnit": {
+          "type": "string",
+          "description": "Display hint: units | thousands | millions or empty"
+        },
         "sourcePdfId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -64,6 +68,10 @@
         "status": { "type": "string", "enum": ["ok", "partial", "failed"] },
         "rawTextSample": { "type": "string" },
         "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "sanityWarnings": {
           "type": "array",
           "items": { "type": "string" }
         }

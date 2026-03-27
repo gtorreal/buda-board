@@ -4,7 +4,9 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "check:html-js": "node scripts/check-inline-html-js.mjs",
+    "test": "node scripts/check-inline-html-js.mjs && node --test"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
